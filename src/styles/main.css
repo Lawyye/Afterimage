@@ -88,27 +88,24 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 @keyframes fxpass { from { background-position: 150% 0; } to { background-position: -150% 0; } }
 
 /* portraits — кинематографичные крупные планы */
-.pt { position: absolute; bottom: 0; width: 598px; height: 806px; opacity: 0; pointer-events: none;
-  transition: opacity .55s ease, transform .7s cubic-bezier(.2,.7,.2,1), filter .45s ease; }
-.pt.side-left { left: 90px; transform: translateX(-50px); }
-.pt.side-right { right: 90px; transform: translateX(50px); }
-.pt.side-center { left: 661px; transform: translateY(30px); }
+.pt { position: absolute; bottom: 0; width: 900px; height: 1212px; opacity: 0; pointer-events: none;
+  transition: opacity .55s ease, transform .7s cubic-bezier(.2,.7,.2,1), filter .45s ease; transform-origin: 50% 40%; }
+.pt.side-left { left: 10px; transform: translateX(-50px); }
+.pt.side-right { right: 10px; transform: translateX(50px); }
+.pt.side-center { left: 510px; transform: translateY(30px); }
 .pt.on { opacity: 1; transform: none; }
 .pt.off { opacity: 0; }
-.pt.dim { filter: brightness(.62) saturate(.7); opacity: .88; transform: scale(.965); }
-.pt.focus { transform: scale(1.07); }
+.pt.dim { filter: brightness(.6) saturate(.7); opacity: .9; transform: scale(.975); }
+.pt.focus { transform: scale(1.05); }
 .pt-inner { position: absolute; inset: 0;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%), linear-gradient(to bottom, transparent 0%, #000 11%, #000 60%, transparent 94%);
-  -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%), linear-gradient(to bottom, transparent 0%, #000 11%, #000 60%, transparent 94%);
-  mask-composite: intersect;
-  animation: ptbreathe 9s ease-in-out infinite alternate; transform-origin: 50% 70%; }
-@keyframes ptbreathe { from { transform: scale(1); } to { transform: scale(1.025) translateY(-4px); } }
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 64%, transparent 92%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 64%, transparent 92%);
+  animation: ptbreathe 9s ease-in-out infinite alternate; transform-origin: 50% 70%;
+}
+@keyframes ptbreathe { from { transform: scale(1); } to { transform: scale(1.012) translateY(-3px); } }
 .pt-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .pt-a, .pt-b { transition: opacity .2s ease; }
-.pt-talk, .pt-blink { opacity: 0; }
-.pt::after { content: ''; position: absolute; left: 18%; right: 18%; bottom: 14%; height: 1px; background: linear-gradient(90deg, transparent, var(--line-2), transparent); opacity: 0; }
-.pt.speaking::after { opacity: 1; }
+.pt-talk, .pt-blink { opacity: 0; inset: auto; object-fit: fill; }
 #world.memory .pt-inner { animation: ptghost 3.2s steps(1) infinite, ptbreathe 9s ease-in-out infinite alternate; }
 @keyframes ptghost { 0%,92% { filter: none; } 93% { filter: drop-shadow(18px 0 0 rgba(255,40,50,.35)) drop-shadow(-12px 0 0 rgba(60,230,255,.3)); } 96% { filter: none; } }
 
@@ -140,9 +137,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 
 /* ---------- POST FX ---------- */
 #post { position: absolute; inset: 0; pointer-events: none; z-index: 40; }
-#noise { position: absolute; inset: 0; width: 100%; height: 100%; opacity: var(--noise, .07); image-rendering: pixelated; mix-blend-mode: screen; }
-#scanlines { position: absolute; inset: 0; opacity: var(--scan, .5);
-  background: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0px, rgba(0,0,0,.22) 1px, transparent 1px, transparent 3px); }
+#noise { position: absolute; inset: -256px; opacity: var(--noise, .08); mix-blend-mode: overlay; background-size: 256px 256px; animation: grain .6s steps(1) infinite; }
+@keyframes grain { 0% { transform: translate(0,0); } 17% { transform: translate(-97px, 61px); } 33% { transform: translate(53px,-131px); } 50% { transform: translate(-171px,-37px); } 67% { transform: translate(113px, 89px); } 83% { transform: translate(-29px, 157px); } }
+#scanlines { position: absolute; inset: 0; opacity: var(--scan, .2);
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 1px, transparent 4px); }
 #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 55%, rgba(0,0,0,.62) 100%); }
 #glitch { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; mix-blend-mode: screen; image-rendering: pixelated; }
 #glitch.on { opacity: 1; }
@@ -570,7 +568,7 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
 .dlg .name i:empty { display: none; }
 .boot .press { animation: blinkred 1.6s steps(2) infinite; }
 .title-screen nav .menu-btn small { font-size: 13px; }
-.pt-eye { position: absolute; width: 46px; height: 30px; margin: -15px 0 0 -23px; border-radius: 50%; opacity: 0; pointer-events: none;
+.pt-eye { position: absolute; width: 7.6%; height: 3.7%; transform: translate(-50%, -50%); border-radius: 50%; opacity: 0; pointer-events: none;
   background: radial-gradient(closest-side, #ffffff 0%, #e9fdff 45%, rgba(150,240,255,.55) 70%, rgba(150,240,255,0) 100%); transition: opacity .25s; }
 .pt.glitch-eyes .pt-eye { opacity: 1; animation: eyeflick 1.4s steps(1) infinite; }
 @keyframes eyeflick { 0%,100% { opacity: 1; } 40% { opacity: .85; } 41% { opacity: 1; } 77% { opacity: .6; } 78% { opacity: 1; } }

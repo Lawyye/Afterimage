@@ -6,8 +6,9 @@ import manifest from '../../assets/portraits/manifest.json';
 import { BG_FX, BgFx } from '../data/bgfx';
 
 export type Side = 'left' | 'right' | 'center';
-type Manifest = Record<string, { exprs: Record<string, { talk?: boolean; blink?: boolean }> }>;
-const MAN = manifest as Manifest;
+type Box = [number, number, number, number]; // left, top, width, height в процентах кадра
+type Manifest = Record<string, { exprs: Record<string, { talk?: Box; blink?: Box }> }>;
+const MAN = manifest as unknown as Manifest;
 
 const ALIAS: Record<string, string[]> = {
   warm: ['smile', 'neutral'], soft: ['smile', 'neutral'], tired: ['neutral'], calm: ['neutral'], blank: ['neutral'],
@@ -21,7 +22,7 @@ const ALIAS: Record<string, string[]> = {
 };
 
 // Положение глаз для эффекта «пустого белого взгляда» (координаты портрета 600×806)
-const GLITCH_EYES: Record<string, [number, number][]> = { eva: [[250, 327], [410, 345]] };
+const GLITCH_EYES: Record<string, [number, number][]> = { eva: [[41.7, 40.6], [68.3, 42.8]] }; // проценты кадра
 
 export function resolveExpr(id: string, expr: string): string {
   if (expr === 'glitch' && GLITCH_EYES[id]) expr = 'shock';
@@ -78,7 +79,7 @@ export class Stage {
   charLayer = document.getElementById('char-layer')!;
   hotspotLayer = document.getElementById('hotspot-layer')!;
   weather = new Weather(document.getElementById('weather') as HTMLCanvasElement);
-  noise = new Noise(document.getElementById('noise') as HTMLCanvasElement);
+  noise = new Noise(document.getElementById('noise')!);
   glitch = new Glitch(document.getElementById('glitch') as HTMLCanvasElement, this.world, this.stage);
   private flashEl = document.getElementById('flash')!;
   private fadeEl = document.getElementById('fade')!;
@@ -178,8 +179,8 @@ export class Stage {
     const a = mk('pt-img pt-a'), b = mk('pt-img pt-b'), talk = mk('pt-img pt-talk'), blink = mk('pt-img pt-blink');
     for (const [ex, ey] of GLITCH_EYES[id] ?? []) {
       const g = el('i', 'pt-eye');
-      g.style.left = `${ex}px`;
-      g.style.top = `${ey}px`;
+      g.style.left = `${ex}%`;
+      g.style.top = `${ey}%`;
       inner.appendChild(g);
     }
     root.classList.toggle('glitch-eyes', expr === 'glitch');
@@ -238,8 +239,14 @@ export class Stage {
     p.hasBlink = !!f.blink;
     p.talk.style.opacity = '0';
     p.blink.style.opacity = '0';
-    if (p.hasTalk) p.talk.src = portraitUrl(p.id, p.expr, 'talk');
-    if (p.hasBlink) p.blink.src = portraitUrl(p.id, p.expr, 'blink');
+    const place = (img: HTMLImageElement, b: Box) => {
+      img.style.left = `${b[0]}%`;
+      img.style.top = `${b[1]}%`;
+      img.style.width = `${b[2]}%`;
+      img.style.height = `${b[3]}%`;
+    };
+    if (f.talk) { p.talk.src = portraitUrl(p.id, p.expr, 'talk'); place(p.talk, f.talk); }
+    if (f.blink) { p.blink.src = portraitUrl(p.id, p.expr, 'blink'); place(p.blink, f.blink); }
   }
   private scheduleBlink(p: Portrait) {
     clearTimeout(p.blinkTimer);
@@ -294,7 +301,7 @@ export class Stage {
   setMemory(on: boolean) {
     this.memory = on;
     this.world.classList.toggle('memory', on);
-    this.noise.boost = on ? 0.03 : 0;
+    this.noise.boost = on ? 0.06 : 0;
     this.noise.apply();
   }
   setTint(t: string | null) {

@@ -16,9 +16,9 @@ export const DOCS: Record<string, DocDef> = {
 <div class="hand" style="margin-top:22px;color:#5a1414">Четвёртый. Я согласилась. Сама.<br>Не соглашайся. Пожалуйста. Хоть раз — не соглашайся.</div>
 <div class="meta">Четыре записи. Последняя — совсем свежая. Я не помню, как писала её.</div>` },
   photo_sonya: { id: 'photo_sonya', kind: 'photo', title: 'Соня', html: `
-<div class="polaroid"><img src="${p('sonya_smile')}" alt="Соня"><div class="cap">Соня. Набережная, последняя осень.</div></div>` },
+<div class="polaroid"><img src="${p('sonya_smile_photo')}" alt="Соня"><div class="cap">Соня. Набережная, последняя осень.</div></div>` },
   photo_ms: { id: 'photo_ms', kind: 'photo', title: 'Мира и Соня', html: `
-<div class="strip"><img src="${p('mira_smile')}" alt="Мира"><img src="${p('sonya_laugh')}" alt="Соня"></div>
+<div class="strip"><img src="${p('mira_smile_photo')}" alt="Мира"><img src="${p('sonya_laugh_photo')}" alt="Соня"></div>
 <div class="cap">Две карточки из фотобудки, вставленные в одну рамку. Мира и Соня — в один и тот же дождливый день.</div>` },
   doorlog: { id: 'doorlog', kind: 'terminal', title: 'Журнал замка', html: `
 <h3>КВАРТИРА 41-07 // БАШНЯ «ЛАЗУРЬ» // ЖУРНАЛ ЗАМКА</h3>

@@ -75,34 +75,27 @@ export class Weather {
 }
 
 export class Noise {
-  private ctx: CanvasRenderingContext2D;
-  private img: ImageData;
-  private frame = 0;
-  constructor(private canvas: HTMLCanvasElement) {
-    this.ctx = canvas.getContext('2d')!;
-    this.img = this.ctx.createImageData(canvas.width, canvas.height);
+  // Мелкое плёночное зерно: один тайл 256×256, анимация смещением фона (без нагрузки на CPU)
+  constructor(private el: HTMLElement) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d')!;
+    const img = ctx.createImageData(256, 256);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = 128 + (Math.random() + Math.random() + Math.random() - 1.5) * 120;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    el.style.backgroundImage = `url(${c.toDataURL('image/png')})`;
     onSettings(() => this.apply());
-    const tick = () => {
-      if (this.frame++ % 2 === 0 && settings.fx > 0) this.draw();
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
   }
   boost = 0;
   apply() {
     const stage = document.getElementById('stage')!;
-    stage.style.setProperty('--noise', String(0.02 + settings.fx * 0.035 + this.boost));
-    stage.style.setProperty('--scan', String(0.15 + settings.fx * 0.5));
+    stage.style.setProperty('--noise', String(0.05 + settings.fx * 0.07 + this.boost));
+    stage.style.setProperty('--scan', String(0.06 + settings.fx * 0.22));
     stage.classList.toggle('no-fx', settings.fx <= 0.01);
-  }
-  private draw() {
-    const d = this.img.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const v = (Math.random() * 255) | 0;
-      d[i] = d[i + 1] = d[i + 2] = v;
-      d[i + 3] = 255;
-    }
-    this.ctx.putImageData(this.img, 0, 0);
   }
 }
 
