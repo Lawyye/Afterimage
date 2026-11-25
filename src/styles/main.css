@@ -64,7 +64,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 #memory-tint { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s;
   background: radial-gradient(ellipse at 50% 45%, rgba(160, 10, 20, 0.05) 30%, rgba(110, 0, 8, 0.55) 100%); mix-blend-mode: multiply; }
 #world { transition: filter 1.2s ease; }
-#world.memory { filter: grayscale(0.9) contrast(1.28) brightness(0.92); }
+#world.memory { filter: grayscale(0.88) contrast(1.18) brightness(1.18); }
 #world.memory #memory-tint { opacity: 1; }
 
 /* light effects */
@@ -95,7 +95,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .pt.side-center { left: 661px; transform: translateY(30px); }
 .pt.on { opacity: 1; transform: none; }
 .pt.off { opacity: 0; }
-.pt.dim { filter: brightness(.42) saturate(.6); transform: scale(.965); }
+.pt.dim { filter: brightness(.62) saturate(.7); opacity: .88; transform: scale(.965); }
 .pt.focus { transform: scale(1.07); }
 .pt-inner { position: absolute; inset: 0;
   -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%), linear-gradient(to bottom, transparent 0%, #000 11%, #000 60%, transparent 94%);
@@ -461,8 +461,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 
 /* menus */
 .title-screen { position: absolute; inset: 0; z-index: 35; overflow: hidden; background: #020303; }
-.title-screen .bgimg { position: absolute; inset: -3%; background-size: cover; background-position: center; opacity: .55; filter: grayscale(.4) brightness(.6); animation: bgdrift 50s ease-in-out infinite alternate; }
-.title-screen .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(2,3,3,.96) 0%, rgba(2,3,3,.75) 38%, rgba(2,3,3,.1) 75%), linear-gradient(0deg, rgba(2,3,3,.8), transparent 40%); }
+.title-screen .bgimg { position: absolute; inset: -3%; background-size: cover; background-position: center; opacity: .9; filter: saturate(.8) brightness(.85); animation: bgdrift 50s ease-in-out infinite alternate; }
+.title-screen .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(2,3,3,.92) 0%, rgba(2,3,3,.6) 36%, rgba(2,3,3,0) 70%), linear-gradient(0deg, rgba(2,3,3,.8), transparent 40%); }
 .title-screen .logo { position: absolute; left: 140px; top: 210px; }
 .title-screen .logo h1 { margin: 0; font: 900 132px/1 var(--f-title); letter-spacing: .08em; color: var(--cream); position: relative; }
 .title-screen .logo h1 span { position: absolute; left: 0; top: 0; pointer-events: none; }
@@ -570,3 +570,7 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
 .dlg .name i:empty { display: none; }
 .boot .press { animation: blinkred 1.6s steps(2) infinite; }
 .title-screen nav .menu-btn small { font-size: 13px; }
+.pt-eye { position: absolute; width: 46px; height: 30px; margin: -15px 0 0 -23px; border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(closest-side, #ffffff 0%, #e9fdff 45%, rgba(150,240,255,.55) 70%, rgba(150,240,255,0) 100%); transition: opacity .25s; }
+.pt.glitch-eyes .pt-eye { opacity: 1; animation: eyeflick 1.4s steps(1) infinite; }
+@keyframes eyeflick { 0%,100% { opacity: 1; } 40% { opacity: .85; } 41% { opacity: 1; } 77% { opacity: .6; } 78% { opacity: 1; } }

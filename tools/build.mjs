@@ -49,6 +49,11 @@ const htmlPlugin = {
         mkdirSync(to, { recursive: true });
         for (const f of readdirSync(from)) if (f.endsWith('.webp')) copyFileSync(join(from, f), join(to, f));
       }
+      // вариант для публикации как веб-страницы (без обёртки документа)
+      const body = tpl.slice(tpl.indexOf('<body>') + 6, tpl.indexOf('</body>'));
+      const page = `<title>Послеобраз</title>\n<style>${css ? css.text : ''}</style>\n${body.replace('/*__JS__*/', () => js.text.replace(/<\/script/gi, '<\\/script'))}`;
+      mkdirSync(join(root, 'build-artifact'), { recursive: true });
+      writeFileSync(join(root, 'build-artifact', 'index.html'), page);
       const kb = (Buffer.byteLength(html) / 1024).toFixed(0);
       console.log(`[build] dist/index.html — ${kb} KB`);
     });

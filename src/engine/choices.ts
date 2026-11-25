@@ -144,7 +144,7 @@ export class Investigation {
         const [dx, dy] = d.dot ?? [x + w / 2, y + h / 2];
         const g = document.createElementNS(svgNS, 'g');
         g.setAttribute('class', 'hs' + (examined.has(`${bgId}.${c.id}`) ? ' done' : ''));
-        g.innerHTML = `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/><circle class="ring" cx="${dx}" cy="${dy}" r="10"/><circle class="pulse" cx="${dx}" cy="${dy}" r="7"/>`;
+        g.innerHTML = `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/><circle class="ring" cx="${dx}" cy="${dy}" r="13"/><circle class="pulse" cx="${dx}" cy="${dy}" r="9"/>`;
         g.addEventListener('mouseenter', () => { audio.sfx('hover', 0.5); this.showLabel(d.label, d.sub, dx, dy - 10); });
         g.addEventListener('mouseleave', () => this.label.classList.remove('on'));
         g.addEventListener('click', (e) => { e.stopPropagation(); finish(c); });

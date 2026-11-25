@@ -269,8 +269,8 @@ export function openSettings() {
       row.innerHTML = `<label>Полный экран<small>F11 или кнопка</small></label><div class="toggle"><button>ПЕРЕКЛЮЧИТЬ</button></div><output></output>`;
       row.querySelector('button')!.addEventListener('click', () => {
         try {
-          if (document.fullscreenElement) void document.exitFullscreen();
-          else void document.documentElement.requestFullscreen();
+          if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
+          else document.documentElement.requestFullscreen().catch(() => undefined);
         } catch { /* */ }
       });
       box.appendChild(row);

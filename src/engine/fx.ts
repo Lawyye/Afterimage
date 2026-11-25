@@ -91,7 +91,7 @@ export class Noise {
   boost = 0;
   apply() {
     const stage = document.getElementById('stage')!;
-    stage.style.setProperty('--noise', String((0.04 + settings.fx * 0.06 + this.boost) ));
+    stage.style.setProperty('--noise', String(0.02 + settings.fx * 0.035 + this.boost));
     stage.style.setProperty('--scan', String(0.15 + settings.fx * 0.5));
     stage.classList.toggle('no-fx', settings.fx <= 0.01);
   }

@@ -10,6 +10,7 @@
     "test:story": "node tests/story-sim.mjs",
     "test:e2e": "node tests/e2e.mjs",
     "test": "npm run typecheck && npm run test:story && npm run build && npm run test:e2e",
+    "test:length": "node tests/length.mjs",
     "serve": "node tools/serve.mjs"
   },
   "repository": {

@@ -14,10 +14,10 @@ export const BG_FX: Record<string, BgFx[]> = {
     { type: 'haze', x: 830, y: 0, w: 700, h: 600, color: 'rgba(120,140,255,0.12)', speed: 40 },
   ],
   courtyard: [
-    { type: 'police', x: 250, y: 40, w: 280, h: 280, color: 'rgba(255,40,60,0.9)', color2: 'rgba(40,90,255,0.9)', speed: 1.1 },
-    { type: 'police', x: 1570, y: 310, w: 280, h: 280, color: 'rgba(40,90,255,0.9)', color2: 'rgba(255,40,60,0.9)', speed: 1.3 },
-    { type: 'police', x: 1420, y: 490, w: 260, h: 260, color: 'rgba(255,40,60,0.8)', color2: 'rgba(40,90,255,0.8)', speed: 0.9 },
-    { type: 'police', x: 0, y: 700, w: 1920, h: 380, color: 'rgba(255,40,60,0.18)', color2: 'rgba(40,90,255,0.2)', speed: 1.1 },
+    { type: 'police', x: 295, y: 60, w: 170, h: 170, color: 'rgba(255,40,60,0.9)', color2: 'rgba(40,90,255,0.9)', speed: 1.1 },
+    { type: 'police', x: 1640, y: 315, w: 170, h: 170, color: 'rgba(40,90,255,0.9)', color2: 'rgba(255,40,60,0.9)', speed: 1.3 },
+    { type: 'police', x: 1100, y: 640, w: 140, h: 140, color: 'rgba(255,40,60,0.8)', color2: 'rgba(40,90,255,0.8)', speed: 0.9 },
+    { type: 'police', x: 0, y: 760, w: 1920, h: 320, color: 'rgba(255,40,60,0.14)', color2: 'rgba(40,90,255,0.16)', speed: 1.1 },
   ],
   mira_apt: [
     { type: 'glow', x: 110, y: 230, w: 160, h: 160, color: 'rgba(80,230,220,0.6)', speed: 2.2 },
@@ -52,7 +52,7 @@ export const BG_FX: Record<string, BgFx[]> = {
     { type: 'glow', x: 840, y: 700, w: 240, h: 380, color: 'rgba(160,255,180,0.35)', speed: 2.4, delay: 1 },
   ],
   stairwell: [
-    { type: 'dim', x: 0, y: 0, w: 1920, h: 1080, color: 'rgba(0,0,0,0.55)', speed: 4.5 },
+    { type: 'dim', x: 0, y: 0, w: 1920, h: 1080, color: 'rgba(0,0,0,0.38)', speed: 4.5 },
     { type: 'flicker', x: 900, y: -200, w: 700, h: 500, color: 'rgba(220,255,160,0.25)', speed: 4.5 },
   ],
   taxi: [
@@ -75,6 +75,6 @@ export const BG_FX: Record<string, BgFx[]> = {
     { type: 'police', x: 0, y: 0, w: 1920, h: 400, color: 'rgba(255,40,60,0.15)', color2: 'rgba(40,90,255,0.15)', speed: 1.2 },
   ],
   cg_stairs: [
-    { type: 'dim', x: 0, y: 0, w: 1920, h: 1080, color: 'rgba(0,0,0,0.5)', speed: 3.1 },
+    { type: 'flicker', x: 500, y: -200, w: 900, h: 700, color: 'rgba(230,255,170,0.22)', speed: 3.1 },
   ],
 };

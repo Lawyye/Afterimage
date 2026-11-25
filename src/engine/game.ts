@@ -116,6 +116,9 @@ export class Game implements GameApi {
         prev = v;
       });
     };
+    this.story.ObserveVariable('ending', (_n: string, val: unknown) => {
+      if (val) { this.goal = ''; this.hud.classList.add('hidden'); }
+    });
     rel('trust_leo', 'Лео Варга');
     rel('trust_orpheus', 'ОРФЕЙ');
   }
@@ -246,6 +249,15 @@ export class Game implements GameApi {
     this.toast('ev', 'Загружено', `${d.chapterTitle} · ${d.clock}`);
     const last = (d as SaveData & { last?: Line | null }).last ?? null;
     void this.run(token, d.current.kind === 'line' ? d.current.line : null, d.current.kind === 'choices' ? last : null);
+  }
+  /** Отладка/тесты: начать с указанного узла сценария */
+  jump(path: string, vars: Record<string, boolean | number> = {}) {
+    const token = this.beginRun();
+    this.story.ResetState();
+    for (const [k, v] of Object.entries(vars)) this.story.variablesState.$(k, v);
+    this.story.ChoosePathString(path);
+    this.stage.reset();
+    void this.run(token);
   }
   toTitle() {
     this.token.cancel();

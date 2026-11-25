@@ -4,3 +4,4 @@ build-tmp/
 *.log
 tests/out/
 art-src/panels/
+build-artifact/

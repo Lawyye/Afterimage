@@ -20,7 +20,11 @@ const ALIAS: Record<string, string[]> = {
   neutral: ['neutral', 'warm', 'smile'], glitch: ['glitch', 'neutral'],
 };
 
+// Положение глаз для эффекта «пустого белого взгляда» (координаты портрета 600×806)
+const GLITCH_EYES: Record<string, [number, number][]> = { eva: [[250, 327], [410, 345]] };
+
 export function resolveExpr(id: string, expr: string): string {
+  if (expr === 'glitch' && GLITCH_EYES[id]) expr = 'shock';
   const m = MAN[id];
   if (!m) return expr;
   if (m.exprs[expr]) return expr;
@@ -172,6 +176,13 @@ export class Stage {
       return i;
     };
     const a = mk('pt-img pt-a'), b = mk('pt-img pt-b'), talk = mk('pt-img pt-talk'), blink = mk('pt-img pt-blink');
+    for (const [ex, ey] of GLITCH_EYES[id] ?? []) {
+      const g = el('i', 'pt-eye');
+      g.style.left = `${ex}px`;
+      g.style.top = `${ey}px`;
+      inner.appendChild(g);
+    }
+    root.classList.toggle('glitch-eyes', expr === 'glitch');
     root.appendChild(inner);
     this.charLayer.appendChild(root);
     const e = resolveExpr(id, expr);
@@ -203,15 +214,19 @@ export class Stage {
   setExpr(id: string, expr: string) {
     const p = this.portraits.get(id);
     if (!p) return;
+    p.root.classList.toggle('glitch-eyes', expr === 'glitch');
     const e = resolveExpr(id, expr);
     if (e === p.expr) return;
     p.expr = e;
     const back = p.front === p.a ? p.b : p.a;
     back.src = portraitUrl(id, e);
     const swap = () => {
+      back.onload = null;
       back.style.opacity = '1';
-      p.front.style.opacity = '0';
-      p.front = back;
+      if (p.front !== back) {
+        p.front.style.opacity = '0';
+        p.front = back;
+      }
     };
     if (back.complete && back.naturalWidth) swap();
     else back.onload = swap;
@@ -279,7 +294,7 @@ export class Stage {
   setMemory(on: boolean) {
     this.memory = on;
     this.world.classList.toggle('memory', on);
-    this.noise.boost = on ? 0.08 : 0;
+    this.noise.boost = on ? 0.03 : 0;
     this.noise.apply();
   }
   setTint(t: string | null) {
