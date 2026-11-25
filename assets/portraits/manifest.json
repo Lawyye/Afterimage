@@ -1,0 +1,159 @@
+{
+ "eva": {
+  "exprs": {
+   "angry": {
+    "talk": true,
+    "blink": true
+   },
+   "fear": {
+    "talk": true
+   },
+   "neutral": {
+    "talk": true,
+    "blink": true
+   },
+   "sad": {
+    "talk": true,
+    "blink": true
+   },
+   "shock": {},
+   "smile": {
+    "talk": true,
+    "blink": true
+   }
+  }
+ },
+ "voron": {
+  "exprs": {
+   "angry": {},
+   "cold": {
+    "talk": true,
+    "blink": true
+   },
+   "cornered": {},
+   "neutral": {
+    "talk": true,
+    "blink": true
+   },
+   "sad": {
+    "talk": true,
+    "blink": true
+   },
+   "warm": {
+    "talk": true,
+    "blink": true
+   }
+  }
+ },
+ "kessler": {
+  "exprs": {
+   "angry": {
+    "blink": true
+   },
+   "calculating": {
+    "talk": true,
+    "blink": true
+   },
+   "cold": {
+    "talk": true,
+    "blink": true
+   },
+   "neutral": {
+    "talk": true,
+    "blink": true
+   },
+   "smirk": {
+    "talk": true,
+    "blink": true
+   },
+   "surprised": {}
+  }
+ },
+ "leo": {
+  "exprs": {
+   "angry": {},
+   "fear": {},
+   "neutral": {
+    "talk": true,
+    "blink": true
+   },
+   "sad": {
+    "talk": true,
+    "blink": true
+   },
+   "smile": {
+    "talk": true,
+    "blink": true
+   },
+   "suspicious": {
+    "talk": true,
+    "blink": true
+   }
+  }
+ },
+ "mira": {
+  "exprs": {
+   "cry": {},
+   "fear": {
+    "talk": true
+   },
+   "neutral": {
+    "talk": true,
+    "blink": true
+   },
+   "plead": {
+    "talk": true,
+    "blink": true
+   },
+   "shock": {},
+   "smile": {
+    "talk": true,
+    "blink": true
+   }
+  }
+ },
+ "sonya": {
+  "exprs": {
+   "determined": {
+    "talk": true,
+    "blink": true
+   },
+   "fear": {},
+   "laugh": {},
+   "sad": {
+    "talk": true,
+    "blink": true
+   },
+   "smile": {
+    "talk": true,
+    "blink": true
+   },
+   "worry": {
+    "talk": true,
+    "blink": true
+   }
+  }
+ },
+ "hass": {
+  "exprs": {
+   "confused": {
+    "talk": true,
+    "blink": true
+   },
+   "cry": {},
+   "neutral": {
+    "talk": true,
+    "blink": true
+   },
+   "sad": {
+    "talk": true,
+    "blink": true
+   },
+   "smile": {
+    "talk": true,
+    "blink": true
+   },
+   "surprised": {}
+  }
+ }
+}

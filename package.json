@@ -1,0 +1,36 @@
+{
+  "name": "afterimage",
+  "version": "1.0.0",
+  "description": "ПОСЛЕОБРАЗ — кинематографическая интерактивная детективная новелла",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "watch": "node tools/build.mjs --watch",
+    "art": "node tools/render-art.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:story": "node tests/story-sim.mjs",
+    "test:e2e": "node tests/e2e.mjs",
+    "test": "npm run typecheck && npm run test:story && npm run build && npm run test:e2e",
+    "serve": "node tools/serve.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lawyye/Afterimage.git"
+  },
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/Lawyye/Afterimage/issues"
+  },
+  "homepage": "https://github.com/Lawyye/Afterimage#readme",
+  "devDependencies": {
+    "@fontsource/caveat": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@fontsource/pt-serif": "^5.3.0",
+    "@fontsource/tektur": "^5.3.0",
+    "esbuild": "^0.28.2",
+    "inkjs": "^2.4.0",
+    "typescript": "^5.9.3"
+  },
+  "private": true,
+  "type": "module"
+}
