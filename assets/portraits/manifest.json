@@ -5,6 +5,7 @@
     "talk": true,
     "blink": true
    },
+   "closed": {},
    "fear": {
     "talk": true
    },
@@ -26,6 +27,7 @@
  "voron": {
   "exprs": {
    "angry": {},
+   "closed": {},
    "cold": {
     "talk": true,
     "blink": true
@@ -54,6 +56,7 @@
     "talk": true,
     "blink": true
    },
+   "closed": {},
    "cold": {
     "talk": true,
     "blink": true
@@ -72,6 +75,7 @@
  "leo": {
   "exprs": {
    "angry": {},
+   "closed": {},
    "fear": {},
    "neutral": {
     "talk": true,
@@ -93,6 +97,7 @@
  },
  "mira": {
   "exprs": {
+   "closed": {},
    "cry": {},
    "fear": {
     "talk": true
@@ -114,6 +119,7 @@
  },
  "sonya": {
   "exprs": {
+   "closed": {},
    "determined": {
     "talk": true,
     "blink": true
@@ -136,6 +142,7 @@
  },
  "hass": {
   "exprs": {
+   "closed": {},
    "confused": {
     "talk": true,
     "blink": true

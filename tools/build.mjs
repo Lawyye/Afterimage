@@ -3,7 +3,7 @@
 // 2) бандлит TypeScript + CSS (шрифты и изображения инлайнятся)
 // 3) собирает HTML
 import { build, context } from 'esbuild';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, copyFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileStory } from './ink.mjs';
@@ -44,6 +44,11 @@ const htmlPlugin = {
         .replace('/*__CSS__*/', () => (css ? css.text : ''))
         .replace('/*__JS__*/', () => js.text.replace(/<\/script/gi, '<\\/script'));
       writeFileSync(join(dist, 'index.html'), html);
+      for (const sub of ['bg', 'portraits']) {
+        const from = join(root, 'assets', sub), to = join(dist, 'assets', sub);
+        mkdirSync(to, { recursive: true });
+        for (const f of readdirSync(from)) if (f.endsWith('.webp')) copyFileSync(join(from, f), join(to, f));
+      }
       const kb = (Buffer.byteLength(html) / 1024).toFixed(0);
       console.log(`[build] dist/index.html — ${kb} KB`);
     });

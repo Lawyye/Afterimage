@@ -67,7 +67,7 @@ def main():
         entry = {'exprs': {}, }
         row = []
         for n in names:
-            if n in ('talk', 'closed'): continue
+            if n == 'talk': continue
             im = Image.open(os.path.join(d, n + '.png')).convert('RGB')
             e = {}
             out = finish(im)
