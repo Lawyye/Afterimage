@@ -13,7 +13,11 @@ if (warnings.length) console.warn('Предупреждения:\n' + warnings.j
 
 // загрузка игровых данных из TypeScript
 async function loadTs(file) {
-  const r = await build({ entryPoints: [file], bundle: true, write: false, format: 'esm', platform: 'node' });
+  const virtualAssets = { name: 'va', setup(b) {
+    b.onResolve({ filter: /^virtual:assets$/ }, () => ({ path: 'va', namespace: 'va' }));
+    b.onLoad({ filter: /.*/, namespace: 'va' }, () => ({ contents: 'export default {}', loader: 'js' }));
+  } };
+  const r = await build({ entryPoints: [file], bundle: true, write: false, format: 'esm', platform: 'node', plugins: [virtualAssets] });
   const code = r.outputFiles[0].text;
   return import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
 }
@@ -61,11 +65,18 @@ const endings = {};
 const knotsVisited = new Set();
 const allKnots = new Set([...source.matchAll(/^===\s*(?:function\s+)?([a-z_0-9]+)/gm)].map((m) => m[1]));
 const flagsSeen = {};
+const chronSeen = new Set();
 let maxSteps = 0, totalLines = 0, runs = 0, deadEnds = 0;
 
 function playthrough(policy, seed) {
   let s = seed;
-  const rnd = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
+  // mulberry32: честная 32-битная арифметика (прежний LCG терял точность на больших числах и зацикливался)
+  const rnd = () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
   const story = new Story(json);
   let err = null;
   story.onError = (m) => { err = m; };
@@ -92,6 +103,16 @@ function playthrough(policy, seed) {
       }
       const m = /^([a-z]+)_?(?:\/([a-z]+))?:/.exec(text.trim());
       if (m && !CHARS.has(m[1]) && !/^[a-z]+$/.test('')) problems.push(`Неизвестный говорящий ${m[1]}`);
+      // логика: говорит ли тот, кто в этот момент говорить не может
+      if (m) {
+        const V = (k) => story.variablesState.$(k);
+        const where = path ?? '?';
+        if (m[1] === 'orpheus' && V('orpheus_cut') && !/подо—/.test(text) && !where.startsWith('end_retouch')) problems.push(`ОРФЕЙ говорит после отключения (${where}): ${text.trim().slice(0, 60)}`);
+        if (m[1] === 'leo' && !V('leo_met') && !where.startsWith('leo')) problems.push(`Лео говорит до встречи (${where})`);
+        if (V(m[1] + '_named') === false && V(m[1] + '_met') && !where.startsWith(m[1])) problems.push(`${m[1]} так и не представился, но говорит в ${where}`);
+        if (m[1] === 'kessler' && !V('kessler_met') && !where.startsWith('kessler')) problems.push(`Кесслер говорит до встречи (${where})`);
+        if (m[1] === 'hass' && !V('hass_met') && !where.startsWith('leo') && !where.startsWith('end_clean')) problems.push(`Хаас говорит до встречи (${where})`);
+      }
       if (err) break;
       continue;
     }
@@ -132,6 +153,11 @@ function playthrough(policy, seed) {
   const end = story.variablesState.$('ending');
   if (!end) { deadEnds++; if (deadEnds < 4) problems.push(`Прохождение без концовки (шагов ${steps}) в ${story.state.currentPathString}`); }
   else endings[end] = (endings[end] ?? 0) + 1;
+  if (end) {
+    const vars = {};
+    for (const k of story.variablesState._globalVariables.keys()) vars[k] = story.variablesState.$(k);
+    for (const ch of CHRONICLE) for (const row of ch.rows) for (const o of row.opts) if (o.when(vars)) chronSeen.add(row.id + ':' + o.id);
+  }
   for (const n of ['orpheus_ally', 'has_archive', 'deep_read', 'ev_note', 'ded_loop', 'sent_copy_leo', 'leo_taken', 'cat_saved', 'hass_kind', 'kessler_offer', 'orpheus_cut']) {
     if (story.variablesState.$(n)) flagsSeen[n] = (flagsSeen[n] ?? 0) + 1;
   }
@@ -164,6 +190,7 @@ for (const e of ENDINGS) if (!endings[e.id]) problems.push(`Концовка «$
 const unvisited = [...allKnots].filter((k) => !knotsVisited.has(k) && k !== 'visited_both');
 if (unvisited.length) problems.push('Не посещены узлы: ' + unvisited.join(', '));
 // хроника: все варианты встречаются
+for (const ch of CHRONICLE) for (const row of ch.rows) for (const o of row.opts) if (!chronSeen.has(row.id + ':' + o.id)) problems.push(`Хроника: вариант «${o.text}» (${row.id}) ни разу не встретился`);
 const uniq = [...new Set(problems)];
 if (uniq.length) {
   console.log('\nПРОБЛЕМЫ (' + uniq.length + '):\n- ' + uniq.join('\n- '));

@@ -3,9 +3,9 @@ import { el, escapeHtml, sleep, Token } from '../engine/util';
 import { audio } from '../engine/audio';
 import { Meta, Saves } from '../engine/meta';
 import { ENDINGS } from '../data/endings';
-import { bgUrl } from '../engine/stage';
+import { bgUrl, setAmbient } from '../engine/stage';
 import { api } from './api';
-import { openSaves, openSettings, openChronicle, openEndings, openJournal, confirm, panelOpen } from './panels';
+import { openSaves, openSettings, openChronicle, openEndings, openJournal, openChapters, openGallery, hasChapterSaves, confirm, panelOpen } from './panels';
 import { toggleFullscreen, fullscreenSupported } from './fullscreen';
 
 const ui = () => document.getElementById('ui')!;
@@ -14,11 +14,11 @@ export function showTitle(onNew: () => void, onContinue: (slot: string) => void)
   const root = el('div', 'title-screen');
   const latest = Saves.latest();
   root.innerHTML = `<div class="bgimg" style="background-image:url('${bgUrl('key_art')}')"></div><div class="shade"></div>
-    <div class="logo"><h1>ПОСЛЕОБРАЗ<span class="r">ПОСЛЕОБРАЗ</span><span class="c">ПОСЛЕОБРАЗ</span></h1><div class="en">AFTERIMAGE</div>
+    <div class="logo"><h1>AFTERIMAGE<span class="r">AFTERIMAGE</span><span class="c">AFTERIMAGE</span></h1><div class="en">ИНТЕРАКТИВНЫЙ ДЕТЕКТИВ</div>
     <div class="tag">Порт-Ирис. Каждый житель носит «Свидетеля». Мёртвые не лгут.<br>Этой ночью последний взгляд жертвы покажет ваше лицо.</div></div>
     <nav></nav>
     <div class="warn">Игра содержит мигающий свет и глитч-эффекты — их можно ослабить в настройках.<br>Лучше всего — в наушниках.</div>
-    <div class="foot"><span>ИНТЕРАКТИВНЫЙ ДЕТЕКТИВ · ~25 МИНУТ · 6 КОНЦОВОК</span><span>ОТКРЫТО КОНЦОВОК: ${Meta.data.endings.length}/${ENDINGS.length}</span></div>`;
+    <div class="foot"><span>~25 МИНУТ · 6 КОНЦОВОК</span><span>ОТКРЫТО КОНЦОВОК: ${Meta.data.endings.length}/${ENDINGS.length}</span></div>`;
   const nav = root.querySelector('nav')!;
   const item = (label: string, sub: string, fn: () => void, disabled = false) => {
     const b = el('button', 'menu-btn', `${escapeHtml(label)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}`);
@@ -37,11 +37,14 @@ export function showTitle(onNew: () => void, onContinue: (slot: string) => void)
     onNew();
   });
   item('Загрузить', '', () => openSaves('load'), !latest);
+  item('Главы', '', () => openChapters((slot) => { root.remove(); onContinue(slot); }), !hasChapterSaves());
   item('Хроника решений', '', () => openChronicle());
   item('Концовки', `${Meta.data.endings.length}/${ENDINGS.length}`, () => openEndings());
+  item('Галерея', '', () => openGallery());
   item('Настройки', '', () => openSettings());
   if (fullscreenSupported() && !/AfterimageApp/.test(navigator.userAgent)) item('Полный экран', '', async () => { const err = await toggleFullscreen(); if (err) api.g.toast('bad', 'Полный экран', err); });
   document.getElementById('stage')!.appendChild(root);
+  setAmbient(bgUrl('key_art'));
   audio.music('title', 0.5, 2);
   audio.ambience('rain_in', 2);
   return root;
@@ -70,6 +73,10 @@ export function togglePause() {
   item('Продолжить', () => { close(); g.resume(); });
   item('Сохранить', () => openSaves('save'), !g.canSave());
   item('Загрузить', () => openSaves('load'));
+  item('Быстрое сохранение', () => { close(); g.quickSave(); g.resume(); }, !g.canSave());
+  item('Быстрая загрузка', async () => {
+    if (await confirm('Загрузить быстрое сохранение? Несохранённый прогресс будет потерян.', 'ЗАГРУЗИТЬ', 'ОТМЕНА')) { close(); g.quickLoad(); }
+  }, !Saves.read('quick'));
   item('Журнал', () => openJournal());
   item('Хроника', () => openChronicle((g.vars().__runChron as never) ?? undefined));
   item('Настройки', () => openSettings());
@@ -176,7 +183,7 @@ export async function intro(token: Token) {
 export function boot(): Promise<void> {
   return new Promise((resolve) => {
     const b = el('div', 'boot');
-    b.innerHTML = `<div class="wrap"><h1>ПОСЛЕОБРАЗ</h1><p>Кинематографическая детективная новелла.<br>Наденьте наушники. Решения необратимы.</p><div class="press">НАЖМИТЕ, ЧТОБЫ НАЧАТЬ</div><p class="load" style="margin-top:30px;font-size:14px"></p></div>`;
+    b.innerHTML = `<div class="wrap"><h1>AFTERIMAGE</h1><p>Кинематографическая детективная новелла.<br>Наденьте наушники. Решения необратимы.</p><div class="press">НАЖМИТЕ, ЧТОБЫ НАЧАТЬ</div><p class="load" style="margin-top:30px;font-size:14px"></p></div>`;
     document.getElementById('stage')!.appendChild(b);
     const go = () => {
       window.removeEventListener('keydown', go);

@@ -8,6 +8,7 @@ export interface Line {
   speaker: string | null; // id персонажа, 'thought', 'sys' или null (повествование)
   expr: string | null;
   name?: string; // произвольное имя
+  anon?: boolean; // персонаж ещё не представился
   text: string;
   tags: string[];
 }
@@ -58,6 +59,8 @@ export class Dialogue {
   auto = false;
   skip = false;
   onLog: (() => void) | null = null;
+  /** Кнопки быстрого меню: скрыть интерфейс, быстрое сохранение и загрузка */
+  onQuick: ((m: 'hide' | 'qsave' | 'qload') => void) | null = null;
   onModeChange: (() => void) | null = null;
 
   constructor(private ui: HTMLElement, private stage: Stage) {
@@ -65,13 +68,14 @@ export class Dialogue {
     const inner = el('div', 'inner');
     inner.appendChild(this.textEl);
     this.root.append(rule, this.nameEl, inner, this.nextEl, this.modes);
-    this.modes.innerHTML = `<button data-m="log" title="Журнал реплик (L)">ЛОГ</button><button data-m="auto" title="Авточтение (A)">АВТО</button><button data-m="skip" title="Пропуск прочитанного (S)">ПРОПУСК</button>`;
+    this.modes.innerHTML = `<button data-m="log" title="Журнал реплик (L)">ЛОГ</button><button data-m="auto" title="Авточтение (A)">АВТО</button><button data-m="skip" title="Пропуск прочитанного (S)">ПРОПУСК</button><button data-m="hide" title="Скрыть интерфейс (H)">СКРЫТЬ</button><button data-m="qsave" class="wide" title="Быстрое сохранение (F5)">Б.СОХР</button><button data-m="qload" class="wide" title="Быстрая загрузка (F9)">Б.ЗАГР</button>`;
     this.modes.addEventListener('click', (e) => {
       e.stopPropagation();
       const m = (e.target as HTMLElement).closest('button')?.dataset.m;
       if (m === 'auto') this.setAuto(!this.auto);
       if (m === 'skip') this.setSkip(!this.skip);
       if (m === 'log') this.onLog?.();
+      if (m === 'hide' || m === 'qsave' || m === 'qload') this.onQuick?.(m);
     });
     this.root.addEventListener('click', () => this.advance());
     this.orpheus.innerHTML = ORPHEUS_SVG;
@@ -137,7 +141,7 @@ export class Dialogue {
     this.setOrpheus(isOrpheus, line.expr ?? 'idle');
     // имя
     if (ch && ch.name) {
-      this.nameEl.innerHTML = `<b>${escapeHtml(line.name ?? ch.name)}</b><i>${escapeHtml(ch.role)}</i>`;
+      this.nameEl.innerHTML = `<b>${escapeHtml(line.name ?? ch.name)}</b><i>${line.anon ? '' : escapeHtml(ch.role)}</i>`;
       this.nameEl.style.setProperty('--c', ch.color);
       this.nameEl.classList.add('on');
     } else if (line.name) {

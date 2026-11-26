@@ -58,6 +58,7 @@ export class Game implements GameApi {
   private atChoices = false;
   private pendingTimer = 0;
   private autosavePending = false;
+  private chapterCheckpoint = false;
   private busy = false; // блокирующие оверлеи
   private suppressToasts = false;
   private varNames: string[] = [];
@@ -69,6 +70,8 @@ export class Game implements GameApi {
     this.choices = new ChoiceUI(this.ui);
     this.investigation = new Investigation(this.ui, this.stage);
     this.dialogue.onLog = () => openLog();
+    this.dialogue.onQuick = (m) => (m === 'hide' ? this.hideUi() : m === 'qsave' ? this.quickSave() : this.quickLoad());
+    this.stage.onSeen = (key) => Meta.seeArt(key);
     this.ui.append(this.hud, this.toasts);
     this.buildHud();
     this.collectVarNames();
@@ -170,6 +173,7 @@ export class Game implements GameApi {
   }
   private bindInput() {
     const advance = () => {
+      if (this.stage.uiHidden) { this.stage.setUiHidden(false); return; }
       if (!this.inGame || this.busy || pauseOpen() || panelOpen() || docOpen()) return;
       this.dialogue.advance();
     };
@@ -177,6 +181,12 @@ export class Game implements GameApi {
     window.addEventListener('keydown', (e) => {
       if (!this.inGame) return;
       const k = e.key.toLowerCase();
+      if (this.stage.uiHidden) { e.preventDefault(); this.stage.setUiHidden(false); return; }
+      if (e.key === 'F5' || e.key === 'F9') {
+        e.preventDefault();
+        if (!pauseOpen() && !panelOpen() && !docOpen()) { if (e.key === 'F5') this.quickSave(); else this.quickLoad(); }
+        return;
+      }
       if (e.key === 'Escape') {
         if (panelOpen() || docOpen()) return;
         if (!this.busy || pauseOpen()) togglePause();
@@ -191,6 +201,7 @@ export class Game implements GameApi {
       else if (k === 's' || k === 'ы') this.dialogue.setSkip(!this.dialogue.skip);
       else if (e.key === 'Control') this.dialogue.setSkip(true);
       else if (k === 'f' || k === 'а') this.hudAction('fs');
+      else if (k === 'h' || k === 'р') this.hideUi();
     });
     window.addEventListener('keyup', (e) => { if (e.key === 'Control' && this.inGame) this.dialogue.setSkip(false); });
     window.addEventListener('wheel', (e) => { if (this.inGame && e.deltaY < 0 && !panelOpen() && !this.busy && !pauseOpen()) openLog(); }, { passive: true });
@@ -199,6 +210,7 @@ export class Game implements GameApi {
   // -------------------------------------------------------------- lifecycle
   title() {
     this.inGame = false;
+    this.stage.setUiHidden(false);
     this.hud.classList.add('hidden');
     this.dialogue.hide();
     this.stage.reset();
@@ -215,6 +227,7 @@ export class Game implements GameApi {
     document.querySelectorAll('.hs-svg').forEach((n) => n.remove());
     this.inGame = true;
     this.busy = false;
+    this.stage.setUiHidden(false);
     this.hud.classList.remove('hidden');
     return this.token;
   }
@@ -239,7 +252,12 @@ export class Game implements GameApi {
     if (!d) return;
     const token = this.beginRun();
     this.suppressToasts = true;
-    try { this.story.state.LoadJson(d.ink); } finally { this.suppressToasts = false; }
+    try {
+      this.story.state.LoadJson(d.ink);
+      // сохранения старых версий: «представились» все, с кем уже встречались после второй главы
+      const V = this.story.variablesState;
+      if ((V.$('chapter') as number) >= 3) for (const id of ['leo', 'kessler']) if (V.$(id + '_met') && !V.$(id + '_named')) V.$(id + '_named', true);
+    } finally { this.suppressToasts = false; }
     this.log = d.log ?? [];
     this.unread = new Set(d.unread ?? []);
     this.examined = new Set(d.examined ?? []);
@@ -268,6 +286,30 @@ export class Game implements GameApi {
     this.title();
   }
   resume() { /* пауза закрывается сама */ }
+  /** Спрятать окно текста и интерфейс (касание или любая клавиша — вернуть) */
+  hideUi() {
+    if (!this.inGame || this.busy || this.atChoices || !this.dialogue.waiting) return;
+    this.dialogue.setAuto(false);
+    this.dialogue.setSkip(false);
+    this.stage.setUiHidden(true);
+  }
+  quickSave() {
+    if (!this.inGame || this.busy) return;
+    if (!this.canSave() || !this.save('quick')) { this.toast('bad', 'Быстрое сохранение', 'Сейчас сохранить нельзя.'); audio.sfx('wrong'); return; }
+    audio.sfx('confirm');
+    this.toast('ev', 'Быстрое сохранение', `${this.chapterTitle} · ${this.clock || '--:--'}`);
+  }
+  quickLoad() {
+    if (this.busy) return;
+    if (!Saves.read('quick')) { this.toast('bad', 'Быстрая загрузка', 'Быстрого сохранения пока нет.'); audio.sfx('wrong'); return; }
+    audio.sfx('confirm');
+    this.load('quick');
+  }
+  /** Автосохранение + контрольная точка начала главы */
+  private autosave() {
+    this.save('auto');
+    if (this.chapterCheckpoint) { this.chapterCheckpoint = false; this.save('ch' + this.chapter); }
+  }
   canSave() {
     return this.inGame && !this.busy && (this.atChoices || !!this.lastLine);
   }
@@ -293,6 +335,8 @@ export class Game implements GameApi {
           const text = (this.story.Continue() ?? '').trim();
           const tags = (this.story.currentTags ?? []).map((t) => t.trim());
           const line = parseLine(text, tags);
+          // «???» вместо имени, пока персонаж не представился
+          if (line.speaker && this.story.variablesState.$(line.speaker + '_named') === false) { line.name = '???'; line.anon = true; }
           const post = await this.preTags(tags, token);
           if (line.text && line.text !== '@') await this.showLine(line, token, line.voiceOnly);
           for (const t of post) await this.postTag(t, token);
@@ -329,7 +373,7 @@ export class Game implements GameApi {
     }
     if (this.autosavePending) {
       this.autosavePending = false;
-      this.save('auto');
+      this.autosave();
     }
     if (!wait) {
       this.dialogue.render(line);
@@ -371,7 +415,7 @@ export class Game implements GameApi {
         case 'goal': this.goal = val; this.updateHud(); break;
         case 'cam': this.stage.push(a[0] === 'push'); break;
         case 'timer': this.pendingTimer = parseFloat(a[0]); break;
-        case 'autosave': this.autosavePending = true; break;
+        case 'autosave': this.autosavePending = true; this.chapterCheckpoint = true; break;
         case 'flashpt': {
           this.stage.show(a[0], a[1] ?? 'neutral', 'center');
           this.stage.glitch.burst(0.8, 500);
@@ -456,7 +500,7 @@ export class Game implements GameApi {
   private async presentChoices(token: Token): Promise<number> {
     const parsed = this.story.currentChoices.map((c, i) => parseChoice(c.text, i));
     this.atChoices = true;
-    if (this.autosavePending) { this.autosavePending = false; this.save('auto'); }
+    if (this.autosavePending) { this.autosavePending = false; this.autosave(); }
     // служебные «готово» после оверлеев выбираются автоматически
     const auto = parsed.find((c) => c.kind === 'system' && /_done$/.test(c.id!));
     if (auto) { this.atChoices = false; return auto.index; }

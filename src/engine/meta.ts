@@ -30,13 +30,16 @@ interface Meta {
   seen: string[];
   runs: number;
   lastSlot: string | null;
+  art: string[]; // открытое в галерее: bg:<id>, pt:<id>:<expr>
 }
 
-const meta: Meta = Object.assign({ endings: [], chron: {}, seen: [], runs: 0, lastSlot: null }, Storage2.read<Partial<Meta>>('meta', {}));
+const meta: Meta = Object.assign({ endings: [], chron: {}, seen: [], runs: 0, lastSlot: null, art: [] }, Storage2.read<Partial<Meta>>('meta', {}));
 const seenSet = new Set(meta.seen);
+const artSet = new Set(meta.art);
 let dirty = false;
 function persist() {
   meta.seen = [...seenSet].slice(-6000);
+  meta.art = [...artSet];
   Storage2.write('meta', meta);
   dirty = false;
 }
@@ -54,10 +57,14 @@ export const Meta = {
   known(row: string) { return meta.chron[row] ?? []; },
   addRun() { meta.runs++; persist(); },
   setLast(slot: string) { meta.lastSlot = slot; persist(); },
+  seeArt(key: string) { if (!artSet.has(key)) { artSet.add(key); dirty = true; } },
+  hasArt(key: string) { return artSet.has(key); },
   flush: persist,
 };
 
-export const SLOTS = ['auto', 's1', 's2', 's3', 's4', 's5'];
+export const SLOTS = ['auto', 'quick', 's1', 's2', 's3', 's4', 's5'];
+/** Контрольные точки начала глав последнего прохождения (для выбора главы) */
+export const CHAPTER_SLOTS = ['ch0', 'ch1', 'ch2', 'ch3', 'ch4'];
 export const Saves = {
   read(slot: string): SaveData | null { return Storage2.read<SaveData | null>('save.' + slot, null); },
   write(slot: string, d: SaveData) { const ok = Storage2.write('save.' + slot, d); Meta.setLast(slot); return ok; },

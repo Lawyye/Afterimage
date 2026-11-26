@@ -1,7 +1,7 @@
 // Сцена: фон, портреты персонажей, камера и визуальные эффекты.
-import { el, sleep, Token } from './util';
+import { el, sleep, Token, haptic } from './util';
 import { Weather, Noise, Glitch } from './fx';
-import { settings } from './settings';
+import { settings, onSettings } from './settings';
 import manifest from '../../assets/portraits/manifest.json';
 import { BG_FX, BgFx } from '../data/bgfx';
 import { asset } from './assets';
@@ -35,8 +35,36 @@ export function resolveExpr(id: string, expr: string): string {
   return Object.keys(m.exprs)[0];
 }
 export const hasPortrait = (id: string) => !!MAN[id];
+export const portraitExprs = (id: string) => Object.keys(MAN[id]?.exprs ?? {});
 export const portraitUrl = (id: string, expr: string, v = '') => asset(`assets/portraits/${id}_${resolveExpr(id, expr)}${v ? '_' + v : ''}.webp`);
 export const bgUrl = (id: string) => asset(`assets/bg/${id}.webp`);
+/** Размытая подсветка текущего фона в боковых полях вытянутых экранов (20:9 и т. п.) */
+let ambientUrl: string | null = null;
+export function setAmbient(url: string | null) {
+  if (url === ambientUrl) return;
+  ambientUrl = url;
+  const a = document.getElementById('ambient');
+  if (!a) return;
+  a.classList.remove('on');
+  if (url) {
+    const next = url;
+    setTimeout(() => {
+      if (ambientUrl !== next) return;
+      a.style.backgroundImage = `url("${next}")`;
+      a.classList.add('on');
+    }, 300);
+  }
+}
+/** Промис, который выполняется, когда картинка загружена и декодирована (или не загрузилась). */
+export function whenDecoded(img: HTMLImageElement): Promise<void> {
+  const src = img.src;
+  const done = () => undefined;
+  if (typeof img.decode === 'function') {
+    return img.decode().then(done, () => (img.src !== src || img.complete ? undefined : new Promise<void>((r) => { img.addEventListener('load', () => r(), { once: true }); img.addEventListener('error', () => r(), { once: true }); })));
+  }
+  if (img.complete) return Promise.resolve();
+  return new Promise((r) => { img.addEventListener('load', () => r(), { once: true }); img.addEventListener('error', () => r(), { once: true }); });
+}
 export function allAssetUrls(): string[] {
   const urls: string[] = [];
   for (const [id, m] of Object.entries(MAN)) {
@@ -93,10 +121,13 @@ export class Stage {
   private speaking: string | null = null;
   private flapTimer = 0;
   private flap = false;
+  /** Вызывается, когда игрок увидел фон или эмоцию персонажа (для галереи) */
+  onSeen: ((key: string) => void) | null = null;
 
   readonly lowfx = matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4;
   constructor() {
     this.stage.classList.toggle('lowfx', this.lowfx);
+    onSettings((s) => this.stage.style.setProperty('--box-a', String(s.boxAlpha)));
     this.fit();
     // браузер может прокрутить контейнер при фокусе на кнопке/ползунке — возвращаем на место
     for (const id of ['viewport', 'stage', 'ui', 'overlay']) {
@@ -118,6 +149,8 @@ export class Stage {
     const mz = Math.max(1, Math.min(1.9, 0.62 / s));
     this.stage.style.setProperty('--mz', String(mz));
     this.stage.classList.toggle('compact', mz > 1.05);
+    // поля по бокам/сверху есть, только если пропорции экрана заметно отличаются от 16:9
+    document.getElementById('viewport')?.classList.toggle('fill', Math.abs(vw / vh - 16 / 9) > 0.04);
   }
   get uiZoom() {
     return parseFloat(this.stage.style.getPropertyValue('--mz') || '1') || 1;
@@ -128,16 +161,20 @@ export class Stage {
     if (id === this.bgId && this.currentBg) return;
     this.bgId = id;
     const old = this.currentBg;
-    if (old) {
+    const fadeOut = () => {
+      if (!old) return;
       old.style.setProperty('--dur', `${fade}s`);
       old.classList.remove('on');
       setTimeout(() => old.remove(), fade * 1000 + 80);
-    }
+    };
     this.hotspotLayer.innerHTML = '';
     if (!id) {
+      fadeOut();
       this.currentBg = null;
+      setAmbient(null);
       return;
     }
+    this.onSeen?.('bg:' + id);
     const bg = el('div', 'bg');
     bg.style.setProperty('--dur', `${fade}s`);
     const drift = el('div', 'drift-wrap');
@@ -150,8 +187,13 @@ export class Stage {
     bg.appendChild(drift);
     this.bgLayer.appendChild(bg);
     this.currentBg = bg;
-    void bg.offsetWidth;
-    requestAnimationFrame(() => bg.classList.add('on'));
+    // проявляем фон только после декодирования — иначе картинка «выскакивает» посреди перехода
+    whenDecoded(img).then(() => requestAnimationFrame(() => {
+      fadeOut();
+      if (!bg.isConnected) return;
+      bg.classList.add('on');
+      setAmbient(img.src);
+    }));
   }
   /** Слой фона, внутри которого рисуются интерактивные зоны (движется вместе с фоном) */
   get bgDrift(): HTMLElement | null {
@@ -208,12 +250,16 @@ export class Stage {
     root.appendChild(inner);
     this.charLayer.appendChild(root);
     const e = resolveExpr(id, expr);
+    this.onSeen?.(`pt:${id}:${e}`);
     a.src = portraitUrl(id, e);
     b.style.opacity = '0';
     p = { id, expr: e, side: s, root, a, b, talk, blink, front: a, hasTalk: false, hasBlink: false, blinkTimer: 0 };
     this.portraits.set(id, p);
     this.updateVariants(p);
-    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('on')));
+    const shown = p;
+    whenDecoded(a).then(() => requestAnimationFrame(() => {
+      if (this.portraits.get(id) === shown) root.classList.add('on');
+    }));
     this.scheduleBlink(p);
     this.applySpeaking();
   }
@@ -240,18 +286,19 @@ export class Stage {
     const e = resolveExpr(id, expr);
     if (e === p.expr) return;
     p.expr = e;
+    this.onSeen?.(`pt:${id}:${e}`);
     const back = p.front === p.a ? p.b : p.a;
     back.src = portraitUrl(id, e);
-    const swap = () => {
-      back.onload = null;
+    // смена эмоции — перекрёстное растворение после декодирования новой картинки;
+    // если за это время эмоция сменилась ещё раз, устаревшая смена пропускается
+    whenDecoded(back).then(() => {
+      if (p.expr !== e || this.portraits.get(id) !== p) return;
       back.style.opacity = '1';
       if (p.front !== back) {
         p.front.style.opacity = '0';
         p.front = back;
       }
-    };
-    if (back.complete && back.naturalWidth) swap();
-    else back.onload = swap;
+    });
     this.updateVariants(p);
   }
   private updateVariants(p: Portrait) {
@@ -307,6 +354,7 @@ export class Stage {
 
   // ----------------------------------------------------------- camera / fx
   shake(strength = 1) {
+    haptic(Math.round(40 + 50 * strength));
     if (!settings.shake) return;
     this.stage.style.setProperty('--shk', String(strength));
     this.stage.classList.remove('shake');
@@ -322,12 +370,20 @@ export class Stage {
   setMemory(on: boolean) {
     this.memory = on;
     this.world.classList.toggle('memory', on);
+    document.getElementById('ambient')?.classList.toggle('mem', on);
     this.noise.boost = on ? 0.06 : 0;
     this.noise.apply();
   }
   setTint(t: string | null) {
     this.tint = t;
     this.world.dataset.tint = t ?? '';
+  }
+  /** Спрятать интерфейс, чтобы рассмотреть сцену */
+  setUiHidden(on: boolean) {
+    this.stage.classList.toggle('ui-hidden', on);
+  }
+  get uiHidden() {
+    return this.stage.classList.contains('ui-hidden');
   }
   setBars(on: boolean) {
     this.bars.classList.toggle('on', on);
@@ -348,6 +404,7 @@ export class Stage {
   async fade(to: 'black' | 'clear', sec: number, token?: Token) {
     this.fadeEl.style.setProperty('--fd', `${sec}s`);
     this.fadeEl.classList.toggle('on', to === 'black');
+    document.getElementById('ambient')?.classList.toggle('dark', to === 'black');
     await sleep(sec * 1000, token);
   }
   snapshot(): StageSnapshot {

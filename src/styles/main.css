@@ -72,8 +72,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .fx-glow { background: radial-gradient(closest-side, var(--c), transparent); animation: fxpulse var(--sp, 4s) ease-in-out infinite; }
 .fx-candle { background: radial-gradient(closest-side, var(--c), transparent); animation: fxcandle var(--sp, 2s) ease-in-out infinite; }
 .fx-flicker { background: radial-gradient(closest-side, var(--c), transparent); animation: fxflicker var(--sp, 4s) linear infinite; }
-.fx-police { background: radial-gradient(closest-side, var(--c), transparent); animation: fxpolice var(--sp, 1.2s) steps(1) infinite; }
-.fx-police::after { content: ''; position: absolute; inset: 0; background: radial-gradient(closest-side, var(--c2), transparent); animation: fxpolice var(--sp, 1.2s) steps(1) infinite reverse; }
+.fx-police { background: radial-gradient(closest-side, var(--c), transparent); animation: fxpolice calc(var(--sp, 1.2s) * 1.6) ease-in-out infinite; }
+.fx-police::after { content: ''; position: absolute; inset: 0; background: radial-gradient(closest-side, var(--c2), transparent); animation: fxpolice calc(var(--sp, 1.2s) * 1.6) ease-in-out infinite reverse; }
 .fx-screen { background: var(--c); filter: blur(10px); animation: fxscreen var(--sp, .2s) steps(2) infinite; }
 .fx-haze { background: radial-gradient(ellipse at 50% 50%, var(--c), transparent 70%); filter: blur(20px); animation: fxhaze var(--sp, 30s) ease-in-out infinite alternate; }
 .fx-dim { mix-blend-mode: normal; background: var(--c); opacity: 0; animation: fxdim var(--sp, 4s) linear infinite; }
@@ -81,7 +81,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 @keyframes fxpulse { 0%,100% { opacity: calc(var(--op, 1) * .65); transform: scale(.96); } 50% { opacity: var(--op, 1); transform: scale(1.04); } }
 @keyframes fxcandle { 0%,100% { opacity: .7; transform: scale(1); } 23% { opacity: .95; transform: scale(1.06); } 41% { opacity: .6; } 67% { opacity: .9; transform: scale(.96); } }
 @keyframes fxflicker { 0%,100% { opacity: .9; } 7% { opacity: .2; } 8% { opacity: .9; } 46% { opacity: .85; } 47% { opacity: .1; } 49% { opacity: .8; } 50% { opacity: .15; } 52% { opacity: .9; } 81% { opacity: .75; } }
-@keyframes fxpolice { 0%,49% { opacity: .95; } 50%,100% { opacity: .08; } }
+@keyframes fxpolice { 0%,100% { opacity: .85; } 50% { opacity: .12; } }
 @keyframes fxscreen { 0% { opacity: .75; } 50% { opacity: .95; } }
 @keyframes fxhaze { from { transform: translateX(-6%); } to { transform: translateX(6%); } }
 @keyframes fxdim { 0%,100% { opacity: 0; } 6% { opacity: .9; } 7% { opacity: 0; } 46% { opacity: 0; } 47% { opacity: .8; } 48% { opacity: .1; } 49% { opacity: .95; } 51% { opacity: 0; } }
@@ -95,7 +95,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .pt.side-center { left: 510px; transform: translateY(30px); }
 .pt.on { opacity: 1; transform: none; }
 .pt.off { opacity: 0; }
-.pt.dim { filter: brightness(.6) saturate(.7); opacity: .9; transform: scale(.975); }
+.pt.dim { filter: brightness(.6) saturate(.7); opacity: .9; }
 .pt.focus { transform: scale(1.05); }
 .pt-inner { position: absolute; inset: 0;
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 64%, transparent 92%);
@@ -185,7 +185,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 
 /* dialogue */
 .dlg { position: absolute; left: 0; right: 0; bottom: 0; height: 360px; pointer-events: auto; cursor: pointer;
-  background: linear-gradient(to top, rgba(3,5,6,.97) 0%, rgba(3,5,6,.9) 46%, rgba(3,5,6,.55) 72%, rgba(3,5,6,0) 100%);
+  background: linear-gradient(to top, rgba(3,5,6,calc(.97 * var(--box-a, 1))) 0%, rgba(3,5,6,calc(.9 * var(--box-a, 1))) 46%, rgba(3,5,6,calc(.55 * var(--box-a, 1))) 72%, rgba(3,5,6,0) 100%);
   transition: opacity .35s, transform .35s; }
 .dlg.hidden { opacity: 0; transform: translateY(30px); pointer-events: none; }
 .dlg .rule { position: absolute; left: 200px; right: 200px; top: 128px; height: 1px; background: linear-gradient(90deg, transparent, var(--line-2) 10%, var(--line-2) 90%, transparent); }
@@ -330,6 +330,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .person p { margin: 0; font: 400 17px/1.5 var(--f-text); color: var(--text); }
 .person .rel { margin-top: 10px; font: 500 14px var(--f-mono); letter-spacing: .12em; }
 .person .rel span { color: var(--cyan); }
+.person.unknown { opacity: .75; }
+.person.unknown .ph { display: grid; place-items: center; background: radial-gradient(ellipse 60% 48% at 50% 42%, #15191b 0 60%, transparent 61%), radial-gradient(ellipse 90% 45% at 50% 108%, #15191b 0 70%, transparent 71%), #050607; }
+.person.unknown .ph span { font: 700 64px var(--f-title); color: rgba(207,200,182,.35); margin-top: -18px; }
+.person.unknown h4 { color: var(--muted); }
 .empty { font: 400 20px var(--f-mono); color: var(--dim); padding: 60px; text-align: center; }
 
 /* log */
@@ -461,16 +465,17 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .title-screen { position: absolute; inset: 0; z-index: 35; overflow: hidden; background: #020303; }
 .title-screen .bgimg { position: absolute; inset: -3%; background-size: cover; background-position: center; opacity: .9; filter: saturate(.8) brightness(.85); animation: bgdrift 50s ease-in-out infinite alternate; }
 .title-screen .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(2,3,3,.92) 0%, rgba(2,3,3,.6) 36%, rgba(2,3,3,0) 70%), linear-gradient(0deg, rgba(2,3,3,.8), transparent 40%); }
-.title-screen .logo { position: absolute; left: 140px; top: 210px; }
+.title-screen .logo { position: absolute; left: 140px; top: 120px; }
 .title-screen .logo h1 { margin: 0; font: 900 132px/1 var(--f-title); letter-spacing: .08em; color: var(--cream); position: relative; }
 .title-screen .logo h1 span { position: absolute; left: 0; top: 0; pointer-events: none; }
 .title-screen .logo h1 .r { color: var(--red); mix-blend-mode: screen; animation: logoR 6s steps(1) infinite; }
 .title-screen .logo h1 .c { color: #4ce0ff; mix-blend-mode: screen; opacity: .5; animation: logoC 6s steps(1) infinite; }
 @keyframes logoR { 0%,86% { clip-path: inset(0 0 100% 0); transform: none; } 87% { clip-path: inset(20% 0 55% 0); transform: translateX(-10px); } 89% { clip-path: inset(62% 0 8% 0); transform: translateX(14px); } 91% { clip-path: inset(0 0 100% 0); } 96% { clip-path: inset(40% 0 40% 0); transform: translateX(-4px); } 97% { clip-path: inset(0 0 100% 0); } }
 @keyframes logoC { 0%,86% { clip-path: inset(0 0 100% 0); } 88% { clip-path: inset(50% 0 20% 0); transform: translateX(8px); } 90% { clip-path: inset(0 0 100% 0); } }
-.title-screen .logo .en { margin-top: 18px; font: 500 22px var(--f-mono); letter-spacing: 1.1em; color: var(--muted); }
-.title-screen .logo .tag { margin-top: 40px; max-width: 560px; font: 300 21px/1.6 var(--f-text); color: #9aa39e; }
-.title-screen nav { position: absolute; left: 140px; top: 640px; display: flex; flex-direction: column; gap: 4px; }
+.title-screen .logo .en { margin-top: 18px; font: 500 22px var(--f-mono); letter-spacing: .62em; color: var(--muted); }
+.title-screen .logo .tag { margin-top: 40px; max-width: 660px; font: 300 21px/1.6 var(--f-text); color: #9aa39e; }
+.title-screen nav { position: absolute; left: 140px; top: 530px; display: flex; flex-direction: column; gap: 2px; }
+.title-screen nav .menu-btn { padding: 9px 0; }
 .menu-btn { position: relative; display: flex; align-items: center; gap: 18px; width: 440px; padding: 13px 0 13px 0; text-align: left; font: 500 26px var(--f-title); letter-spacing: .16em; color: var(--muted); text-transform: uppercase; transition: color .2s, padding .2s; }
 .menu-btn::before { content: ''; width: 0; height: 2px; background: var(--red); transition: width .25s; }
 .menu-btn:hover, .menu-btn.focus { color: var(--cream); }
@@ -607,7 +612,7 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
 .compact .toasts { left: 24px; top: 92px; }
 .compact .toast { min-width: 300px; }
 .compact .orpheus { right: 30px; top: 110px; width: 180px; height: 180px; }
-.compact .inv-banner { top: 14px; }
+.compact .inv-banner { top: 84px; }
 .compact .inv-exit { right: 20px; bottom: 20px; padding: 16px 24px; }
 .compact .inv-list { left: 20px; bottom: 20px; }
 .compact .hs .pulse { r: 22px; }
@@ -643,15 +648,17 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
 .compact .polaroid img { width: 280px; height: 360px; }
 .compact .strip img { width: 220px; height: 290px; }
 .compact .doc-close { right: 20px; bottom: 20px; }
-.compact .pause { grid-template-columns: 380px 1fr; }
-.compact .pause .left { padding: 40px 0 0 40px; }
-.compact .pause .left h2 { margin-bottom: 16px; }
+.compact .pause { grid-template-columns: 820px 1fr; }
+.compact .pause .left { padding: 34px 0 0 44px; display: grid; grid-template-columns: repeat(2, 370px); column-gap: 24px; align-content: start; }
+.compact .pause .left h2 { margin-bottom: 14px; grid-column: 1 / -1; }
+.compact .pause .left .menu-btn { width: 370px; font-size: 23px; padding: 12px 0; }
 .compact .menu-btn { width: 330px; padding: 10px 0; font-size: 24px; }
 .compact .title-screen .logo { left: 50px; top: 40px; }
 .compact .title-screen .logo h1 { font-size: 84px; }
 .compact .title-screen .logo .en { font-size: 16px; letter-spacing: .8em; }
 .compact .title-screen .logo .tag { display: none; }
-.compact .title-screen nav { left: 50px; top: 210px; gap: 0; }
+.compact .title-screen nav { left: 50px; top: 200px; gap: 0 30px; display: grid; grid-template-columns: repeat(2, 420px); grid-auto-flow: column; grid-template-rows: repeat(5, auto); }
+.compact .title-screen nav .menu-btn { width: 420px; padding: 12px 0; }
 .compact .title-screen .warn { display: none; }
 .compact .title-screen .foot { left: 50px; right: 50px; bottom: 18px; }
 .compact .chapter-card .ttl { font-size: 64px; }
@@ -703,3 +710,52 @@ button:focus:not(:focus-visible) { outline: none; }
 
 /* Android-приложение: уже полноэкранное и горизонтальное */
 .app #rotate-hint, .app .hud [data-b=fs], .app .fs-row { display: none !important; }
+
+/* скрытый интерфейс: видно только сцену */
+#stage.ui-hidden #ui > * { opacity: 0 !important; pointer-events: none !important; transition: opacity .3s; }
+#stage.ui-hidden #world { cursor: pointer; }
+
+/* выбор главы */
+.chapters { display: grid; gap: 14px; }
+.chapter-row { position: relative; display: grid; grid-template-columns: 200px 1fr; grid-template-rows: auto auto; column-gap: 26px; text-align: left; padding: 20px 160px 20px 24px; border: 1px solid var(--line); background: rgba(255,255,255,.02); color: var(--text); }
+.chapter-row .n { grid-row: span 2; align-self: center; font: 700 20px var(--f-title); letter-spacing: .16em; color: var(--amber); }
+.chapter-row h4 { margin: 0; font: 700 24px var(--f-title); letter-spacing: .08em; color: var(--cream); }
+.chapter-row p { margin: 6px 0 0; font: 400 16px var(--f-mono); color: var(--muted); }
+.chapter-row .go { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); font: 500 15px var(--f-mono); letter-spacing: .14em; color: var(--cyan); }
+.chapter-row:not(.locked):hover { border-color: var(--cream); background: rgba(255,255,255,.05); }
+.chapter-row.locked { opacity: .45; cursor: default; }
+.chapter-row.locked .n { color: var(--muted); }
+
+/* галерея */
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; }
+.gallery.pts { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.g-tile { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--line); background: #070909; padding: 0; color: var(--text); }
+.gallery.pts .g-tile { aspect-ratio: 900 / 1212; }
+.g-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; transition: transform .4s; }
+.g-tile:not(.locked):hover img { transform: scale(1.04); }
+.g-tile span { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 12px 8px; font: 500 14px var(--f-mono); letter-spacing: .1em; text-align: left; background: linear-gradient(transparent, rgba(0,0,0,.85)); }
+.g-tile.locked { cursor: default; }
+.g-tile.locked i { position: absolute; inset: 0; display: grid; place-items: center; font: 700 54px var(--f-title); font-style: normal; color: rgba(207,200,182,.22); }
+.g-tile.locked span { color: var(--dim); }
+.viewer { position: absolute; inset: 0; z-index: 60; background: #000; display: grid; place-items: center; cursor: pointer; animation: fadein .25s forwards; opacity: 0; }
+.viewer img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.viewer .cap { position: absolute; left: 40px; bottom: 30px; font: 700 22px var(--f-title); letter-spacing: .12em; color: var(--cream); text-shadow: 0 0 12px #000; }
+.viewer .hint { position: absolute; right: 40px; bottom: 34px; font: 500 13px var(--f-mono); letter-spacing: .16em; color: var(--muted); }
+.compact .gallery { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.compact .gallery.pts { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.compact .chapter-row { grid-template-columns: 150px 1fr; padding: 16px 130px 16px 18px; }
+.compact .dlg .modes button.wide { display: none; }
+
+/* подсветка боковых полей на вытянутых экранах */
+#ambient { position: absolute; inset: -60px; background: #000 center / cover no-repeat; filter: blur(30px) brightness(.32) saturate(.75); opacity: 0; transition: opacity 1.2s ease; pointer-events: none; display: none; }
+#viewport.fill #ambient { display: block; }
+#ambient.on { opacity: 1; }
+/* HUD на телефоне: время до сверки в две строки, не залезает под название главы */
+.compact .hud .clock small { max-width: 150px; line-height: 1.35; }
+.compact .hud .chap { left: 190px; }
+#ambient.mem { filter: blur(30px) brightness(.3) grayscale(1); }
+#ambient.dark { opacity: 0 !important; transition-duration: .8s; }
+#viewport.fill #stage { box-shadow: 0 0 80px 30px rgba(0,0,0,.85); }
+.panel header .close kbd { font: inherit; margin-left: 8px; opacity: .6; }
+.compact .panel header .close kbd, .app .panel header .close kbd { display: none; }
+.hud .clock small b { white-space: nowrap; }

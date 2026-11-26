@@ -1,3 +1,4 @@
+import { settings } from './settings';
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   cls?: string,
@@ -67,4 +68,12 @@ export function hash(s: string): string {
 
 export function nextFrame(): Promise<void> {
   return new Promise((r) => requestAnimationFrame(() => r()));
+}
+
+/** Короткая вибрация (Android); тихо ничего не делает, если не поддерживается или выключена. */
+export function haptic(pattern: number | number[]) {
+  try {
+    const n = navigator as Navigator & { vibrate?: (p: number | number[]) => boolean };
+    if (typeof n.vibrate === 'function' && settings.vibrate) n.vibrate(pattern);
+  } catch { /* нет вибрации */ }
 }

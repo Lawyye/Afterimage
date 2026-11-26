@@ -52,7 +52,7 @@ function page(result, mode) {
   if (mode === 'dist') return tpl.replace('/*__CSS__*/', () => css).replace('/*__JS__*/', () => js);
   // веб-версия публикуется внутри готовой обёртки документа — без <html>/<head>/<body>
   const body = tpl.slice(tpl.indexOf('<body>') + 6, tpl.indexOf('</body>'));
-  return `<title>Послеобраз</title>\n<style>${css}</style>\n${body.replace('/*__JS__*/', () => js)}`;
+  return `<title>Afterimage</title>\n<style>${css}</style>\n${body.replace('/*__JS__*/', () => js)}`;
 }
 
 const base = (inline) => ({

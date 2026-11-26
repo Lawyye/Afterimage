@@ -1,7 +1,7 @@
 {
   "name": "afterimage",
   "version": "1.0.0",
-  "description": "ПОСЛЕОБРАЗ — кинематографическая интерактивная детективная новелла",
+  "description": "AFTERIMAGE — кинематографическая интерактивная детективная новелла",
   "scripts": {
     "build": "node tools/build.mjs",
     "watch": "node tools/build.mjs --watch",
@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test:story": "node tests/story-sim.mjs",
     "test:e2e": "node tests/e2e.mjs",
-    "test": "npm run typecheck && npm run test:story && npm run build && npm run test:ui && npm run test:hotspots && npm run test:e2e",
+    "test": "npm run typecheck && npm run test:story && npm run build && npm run test:ui && npm run test:features && npm run test:hotspots && npm run test:e2e",
+    "test:features": "node tests/features.mjs",
     "test:length": "node tests/length.mjs",
     "serve": "node tools/serve.mjs",
     "test:ui": "node tests/ui.mjs",

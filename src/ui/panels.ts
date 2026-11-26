@@ -7,11 +7,12 @@ import { CHARACTERS } from '../data/characters';
 import { CHRONICLE } from '../data/chronicle';
 import { ENDINGS } from '../data/endings';
 import { DEDUCTIONS } from '../data/board';
-import { Meta, Saves, SLOTS } from '../engine/meta';
+import { Meta, Saves, SLOTS, CHAPTER_SLOTS } from '../engine/meta';
+import { GALLERY_BG, GALLERY_CHARS } from '../data/gallery';
 import { icon } from './icons';
 import { api, overlayRoot } from './api';
 import { openDoc } from './docs';
-import { portraitUrl } from '../engine/stage';
+import { portraitUrl, bgUrl, portraitExprs } from '../engine/stage';
 import { plainText } from '../engine/dialogue';
 import { toggleFullscreen, isFullscreen, fullscreenSupported } from './fullscreen';
 
@@ -36,7 +37,7 @@ function panel(title: string, tabs: [string, string][], onTab: (t: string, body:
       tabsEl.appendChild(b);
     }
     if (tabs.length > 1) header.appendChild(tabsEl);
-    const closeBtn = el('button', 'close', 'ЗАКРЫТЬ  ESC');
+    const closeBtn = el('button', 'close', 'ЗАКРЫТЬ <kbd>ESC</kbd>');
     header.appendChild(closeBtn);
     p.append(header, body);
     root.append(bg, p);
@@ -68,16 +69,24 @@ function panel(title: string, tabs: [string, string][], onTab: (t: string, body:
 }
 
 // ------------------------------------------------------------ journal
-const PEOPLE: { id: string; bio: string; when?: string; rel?: (v: Record<string, unknown>) => string }[] = [
-  { id: 'eva', bio: 'Инспектор-чтец Отдела посмертных показаний. Читает последние часы мёртвых. Не спит четвёртую ночь.' },
-  { id: 'voron', bio: 'Капитан ОПП, руководитель смены. Наставник. Двадцать лет рядом. Был рядом и после смерти Сони.' },
-  { id: 'mira', bio: 'Ведущий инженер «Мнемы», отдел целостности записей. Найдена мёртвой во дворе башни «Лазурь».' },
-  { id: 'sonya', bio: 'Младшая сестра. Журналистка. Погибла три года назад на лестнице своего дома.' },
-  { id: 'leo', when: 'leo_met', bio: 'Бывший ассистент Миры в «Мнеме». Уволен. Прячется в Канале 9.',
+type Vars = Record<string, unknown>;
+// seen — когда игрок впервые встречает персонажа; до этого в досье только «?»
+const PEOPLE: { id: string; bio: string; seen: (v: Vars) => boolean; rel?: (v: Vars) => string }[] = [
+  { id: 'eva', seen: () => true, bio: 'Инспектор-чтец Отдела посмертных показаний. Читает последние часы мёртвых. Не спит четвёртую ночь.' },
+  { id: 'voron', seen: (v) => (v.chapter as number) >= 1, bio: 'Капитан ОПП, руководитель смены. Наставник. Двадцать лет рядом. Был рядом и после смерти Сони.' },
+  { id: 'mira', seen: (v) => !!(v.ev_voron_words || v.ev_afterimage) || (v.chapter as number) >= 2, bio: 'Ведущий инженер «Мнемы», отдел целостности записей. Найдена мёртвой во дворе башни «Лазурь».' },
+  { id: 'sonya', seen: (v) => !!(v.ev_photo || v.ev_afterimage) || (v.chapter as number) >= 2, bio: 'Младшая сестра. Журналистка. Погибла три года назад на лестнице своего дома.' },
+  { id: 'leo', seen: (v) => !!v.leo_met, bio: 'Бывший ассистент Миры в «Мнеме». Уволен. Прячется в Канале 9.',
     rel: (v) => (v.leo_taken ? 'Схвачен' : v.leo_fled ? 'Сбежал' : (v.trust_leo as number) >= 2 ? 'Доверяет' : (v.trust_leo as number) >= 1 ? 'Насторожен' : 'Не доверяет') },
-  { id: 'kessler', when: 'kessler_met', bio: 'Директор по целостности «Мнемы». Один глаз — серый, второй — золотое кольцо.', rel: (v) => (v.c2_kessler === 1 ? 'Сделка' : v.c2_kessler === 2 ? 'Уважает' : 'Наблюдает') },
-  { id: 'hass', when: 'hass_met', bio: '«Чистый». Осуждён по послеобразу Сони. Метёт ступени в Канале 9. Ему снится лестница.' },
+  { id: 'kessler', seen: (v) => !!v.kessler_met, bio: 'Директор по целостности «Мнемы». Один глаз — серый, второй — золотое кольцо.', rel: (v) => (v.c2_kessler === 1 ? 'Сделка' : v.c2_kessler === 2 ? 'Уважает' : 'Наблюдает') },
+  { id: 'hass', seen: (v) => !!v.hass_met, bio: '«Чистый». Осуждён по послеобразу Сони. Метёт ступени в Канале 9. Ему снится лестница.' },
 ];
+const orpheusSeen = (v: Vars) => (v.c0_orpheus as number) > 0 || (v.chapter as number) >= 1;
+const unknownCard = () => {
+  const row = el('div', 'person unknown');
+  row.innerHTML = `<div class="ph"><span>?</span></div><div><h4>НЕИЗВЕСТНО</h4><div class="role">ДАННЫХ НЕТ</div><p>Вы ещё не встречали этого человека.</p></div>`;
+  return row;
+};
 
 export function openJournal(tab?: string) {
   const g = api.g;
@@ -108,12 +117,14 @@ export function openJournal(tab?: string) {
     } else {
       const grid = el('div', 'people');
       for (const p of PEOPLE) {
-        if (p.when && !v[p.when]) continue;
+        if (!p.seen(v)) { grid.appendChild(unknownCard()); continue; }
         const ch = CHARACTERS[p.id];
         const row = el('div', 'person');
-        row.innerHTML = `<div class="ph"><img src="${portraitUrl(p.id, 'neutral')}" alt=""></div><div><h4>${escapeHtml(ch.name)}</h4><div class="role">${escapeHtml(ch.role)}</div><p>${escapeHtml(p.bio)}</p>${p.rel ? `<div class="rel">ОТНОШЕНИЕ: <span>${escapeHtml(p.rel(v))}</span></div>` : ''}</div>`;
+        const anon = v[p.id + '_named'] === false;
+        row.innerHTML = `<div class="ph"><img src="${portraitUrl(p.id, 'neutral')}" alt=""></div><div><h4>${escapeHtml(anon ? '???' : ch.name)}</h4><div class="role">${escapeHtml(anon ? 'Не представился' : ch.role)}</div><p>${escapeHtml(anon ? 'Вы видели этого человека, но не знаете, кто он.' : p.bio)}</p>${p.rel ? `<div class="rel">ОТНОШЕНИЕ: <span>${escapeHtml(p.rel(v))}</span></div>` : ''}</div>`;
         grid.appendChild(row);
       }
+      if (!orpheusSeen(v)) { grid.appendChild(unknownCard()); body.appendChild(grid); return; }
       const orph = el('div', 'person');
       const to = v.trust_orpheus as number;
       orph.innerHTML = `<div class="ph" style="display:grid;place-items:center;color:#9fe8b0">${icon('eye', '#9fe8b0')}</div><div><h4>ОРФЕЙ</h4><div class="role">Аналитическая система ОПП</div><p>Ведёт чтецов по послеобразам. Подчиняется протоколу. Иногда задаёт вопросы не по протоколу.</p><div class="rel">ОТНОШЕНИЕ: <span>${v.orpheus_cut ? 'Отключён' : v.orpheus_ally ? 'Союзник' : to >= 2 ? 'Доверяет' : to >= 0 ? 'Нейтрален' : 'Холоден'}</span></div></div>`;
@@ -223,6 +234,75 @@ export function openEndings() {
   });
 }
 
+// ------------------------------------------------------------ chapters
+const CH_NAMES = ['ПРОЛОГ', 'ГЛАВА I', 'ГЛАВА II', 'ГЛАВА III', 'ГЛАВА IV'];
+export const hasChapterSaves = () => CHAPTER_SLOTS.some((s) => !!Saves.read(s));
+/** Выбор главы: начало каждой главы из последнего прохождения, в котором до неё дошли */
+export function openChapters(onPick: (slot: string) => void) {
+  return panel('Главы', [['c', 'Главы']], (_t, body) => {
+    const list = el('div', 'chapters');
+    CHAPTER_SLOTS.forEach((slot, n) => {
+      const d = Saves.read(slot);
+      const b = el('button', 'chapter-row' + (d ? '' : ' locked'));
+      b.innerHTML = d
+        ? `<span class="n">${CH_NAMES[n]}</span><h4>${escapeHtml(d.chapterTitle)}</h4><p>${escapeHtml(d.clock)} · ${escapeHtml(d.goal || '')}</p><span class="go">НАЧАТЬ ▸</span>`
+        : `<span class="n">${CH_NAMES[n]}</span><h4>? ? ?</h4><p>Глава откроется, когда вы до неё дойдёте.</p>`;
+      if (d) b.addEventListener('click', async () => {
+        if (!(await confirm(`Начать с главы «${d.chapterTitle}»? Решения до неё — из прохождения, в котором вы её открыли. Слоты сохранений не изменятся.`, 'НАЧАТЬ', 'ОТМЕНА'))) return;
+        closePanel();
+        onPick(slot);
+      });
+      list.appendChild(b);
+    });
+    body.appendChild(list);
+    body.appendChild(el('div', 'pct', 'Начало главы запоминается при каждом прохождении — можно вернуться и выбрать иначе.'));
+  });
+}
+
+// ------------------------------------------------------------ gallery
+function viewer(src: string, caption: string) {
+  const root = overlayRoot();
+  const v = el('div', 'viewer');
+  v.innerHTML = `<img src="${src}" alt=""><div class="cap">${escapeHtml(caption)}</div><div class="hint">КАСАНИЕ — ЗАКРЫТЬ</div>`;
+  const close = (e?: Event) => { e?.stopPropagation(); v.remove(); window.removeEventListener('keydown', onKey, true); audio.sfx('back'); };
+  const onKey = (e: KeyboardEvent) => { e.preventDefault(); e.stopPropagation(); close(); };
+  v.addEventListener('click', close);
+  window.addEventListener('keydown', onKey, true);
+  root.appendChild(v);
+}
+export function openGallery() {
+  return panel('Галерея', [['bg', 'Места'], ['pt', 'Персонажи']], (t, body) => {
+    const grid = el('div', t === 'bg' ? 'gallery' : 'gallery pts');
+    let open = 0, total = 0;
+    if (t === 'bg') {
+      for (const g of GALLERY_BG) {
+        total++;
+        const has = g.id === 'key_art' || Meta.hasArt('bg:' + g.id);
+        if (has) open++;
+        const c = el('button', 'g-tile' + (has ? '' : ' locked'));
+        c.innerHTML = has ? `<img src="${bgUrl(g.id)}" alt="" loading="lazy"><span>${escapeHtml(g.title)}${g.cg ? ' · CG' : ''}</span>` : '<i>?</i><span>? ? ?</span>';
+        if (has) c.addEventListener('click', () => viewer(bgUrl(g.id), g.title));
+        grid.appendChild(c);
+      }
+    } else {
+      for (const id of GALLERY_CHARS) {
+        for (const e of portraitExprs(id)) {
+          total++;
+          const has = Meta.hasArt(`pt:${id}:${e}`);
+          if (has) open++;
+          const c = el('button', 'g-tile g-pt' + (has ? '' : ' locked'));
+          const name = CHARACTERS[id].name;
+          c.innerHTML = has ? `<img src="${portraitUrl(id, e)}" alt="" loading="lazy"><span>${escapeHtml(name)}</span>` : '<i>?</i>';
+          if (has) c.addEventListener('click', () => viewer(portraitUrl(id, e), name));
+          grid.appendChild(c);
+        }
+      }
+    }
+    body.appendChild(grid);
+    body.appendChild(el('div', 'pct', `ОТКРЫТО: ${open} / ${total}`));
+  });
+}
+
 // ------------------------------------------------------------ settings
 export function openSettings() {
   return panel('Настройки', [['a', 'Звук'], ['t', 'Текст'], ['v', 'Изображение']], (t, body) => {
@@ -262,10 +342,12 @@ export function openSettings() {
       range('Скорость текста', '0 — мгновенно', 'textSpeed', 0, 120, 5, (v) => (v === 0 ? 'МГН.' : `${v} зн/с`));
       range('Пауза авточтения', 'Секунд после реплики', 'autoDelay', 0.5, 5, 0.1, (v) => `${v.toFixed(1)} с`);
       toggle('Таймер на выборах', 'Решения, которые нужно принять быстро', 'timers');
+      range('Окно текста', 'Непрозрачность фона под репликами', 'boxAlpha', 0.3, 1, 0.05, pct);
     } else {
       range('Плёнка и CRT', 'Шум, развёртка', 'fx', 0, 1, 0.05, pct);
       toggle('Вспышки и глитчи', 'Отключите при светочувствительности', 'glitch');
       toggle('Тряска камеры', '', 'shake');
+      if ('vibrate' in navigator && matchMedia('(pointer: coarse)').matches) toggle('Вибрация', 'Короткий отклик в напряжённые моменты', 'vibrate');
       const row = el('div', 'set-row fs-row');
       row.innerHTML = `<label>Полный экран<small>${fullscreenSupported() ? 'Кнопка или F11' : 'Не поддерживается этим браузером'}</small></label><div class="toggle"><button type="button" class="fs-btn">${isFullscreen() ? 'ВЫЙТИ' : 'ВКЛЮЧИТЬ'}</button></div><output></output>`;
       row.querySelector('.fs-btn')!.addEventListener('click', async () => {
@@ -289,10 +371,12 @@ export function openSaves(mode: 'save' | 'load') {
   return panel(mode === 'save' ? 'Сохранить' : 'Загрузить', [['s', 'Слоты']], (_t, body) => {
     const grid = el('div', 'slots');
     for (const slot of SLOTS) {
-      if (mode === 'save' && slot === 'auto') continue;
+      // авто- и быстрый слот пишутся только сами; в загрузке быстрый виден, когда он есть
+      if (mode === 'save' && (slot === 'auto' || slot === 'quick')) continue;
+      if (slot === 'quick' && !Saves.read(slot)) continue;
       const d = Saves.read(slot);
       const b = el('button', 'slot' + (d ? '' : ' empty'));
-      const name = slot === 'auto' ? 'АВТОСОХРАНЕНИЕ' : `СЛОТ ${slot.slice(1)}`;
+      const name = slot === 'auto' ? 'АВТОСОХРАНЕНИЕ' : slot === 'quick' ? 'БЫСТРОЕ СОХРАНЕНИЕ' : `СЛОТ ${slot.slice(1)}`;
       b.innerHTML = d
         ? `<b>${name}</b><h4>${escapeHtml(d.chapterTitle)}</h4><p>${escapeHtml(d.clock)} · ${escapeHtml(d.goal || '')}</p><p style="font-size:14px;color:#5b6460">${fmtTime(d.time)}</p>`
         : `<b>${name}</b><h4>Пусто</h4>`;

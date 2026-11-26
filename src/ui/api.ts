@@ -14,6 +14,8 @@ export interface GameApi {
   newGame(): void;
   toTitle(): void;
   resume(): void;
+  quickSave(): void;
+  quickLoad(): void;
   toast(kind: 'ev' | 'rel' | 'bad' | 'ded', title: string, text: string, icon?: string): void;
 }
 

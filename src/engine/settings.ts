@@ -12,6 +12,8 @@ export interface Settings {
   glitch: boolean; // вспышки и глитчи (для фоточувствительных можно выключить)
   shake: boolean;
   timers: boolean; // таймеры на выборах
+  vibrate: boolean; // вибрация в ключевые моменты (телефоны)
+  boxAlpha: number; // непрозрачность окна текста 0.3..1
 }
 
 const defaults: Settings = {
@@ -26,6 +28,8 @@ const defaults: Settings = {
   glitch: true,
   shake: true,
   timers: true,
+  vibrate: true,
+  boxAlpha: 1,
 };
 
 type Listener = (s: Settings) => void;
