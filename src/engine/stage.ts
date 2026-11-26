@@ -16,7 +16,7 @@ interface PortraitEntry { exprs: ExprMap; full?: boolean; poses?: Record<string,
 type Manifest = Record<string, PortraitEntry>;
 const MAN = manifest as unknown as Manifest;
 /** Тела персонажей (tools/art/bodies.py): размер кадра, рост относительно других, рамка головы в процентах кадра */
-interface BodyDef { w: number; h: number; hf: number; bust: Box; poses?: string[] }
+interface BodyDef { w: number; h: number; hf: number; hs?: number; bust: Box; poses?: string[] }
 const BODIES = bodiesJson as unknown as Record<string, BodyDef>;
 export const hasBody = (id: string) => !!BODIES[id];
 export const bodyUrl = (id: string, pose = '') => asset(`assets/bodies/${id}${pose ? '@' + pose : ''}.webp`);
@@ -403,7 +403,7 @@ export class Stage {
   private placeBody(root: HTMLElement, b: BodyDef, side: Side) {
     // масштаб — по голове: у всех персонажей голова одного размера (с поправкой на рост), как бы ни был нарисован кадр тела
     const [bl, bt, bw, bh] = b.bust;
-    const k = (HEAD_BOX * b.hf) / ((bh / 100) * b.h);
+    const k = (HEAD_BOX * b.hf * (b.hs ?? 1)) / ((bh / 100) * b.h); // hs — голова нарисована меньше относительно тела
     const w = b.w * k, h = b.h * k;
     const top = HEAD_TOP + HEAD_BOX * (1 - b.hf) * 1.6 - (bt / 100) * h;
     const headCx = ((bl + bw / 2) / 100) * w;

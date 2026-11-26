@@ -186,6 +186,12 @@ export class Game implements GameApi {
       this.dialogue.advance();
     };
     document.getElementById('world')!.addEventListener('click', advance);
+    // на вытянутых экранах (20:9) по бокам сцены есть поля — касание там тоже листает текст
+    const vp = document.getElementById('viewport')!;
+    vp.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t === vp || t.id === 'ambient' || t.id === 'stage') advance();
+    });
     window.addEventListener('keydown', (e) => {
       if (!this.inGame) return;
       const k = e.key.toLowerCase();
