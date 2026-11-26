@@ -65,7 +65,7 @@ function page(result, mode) {
   if (mode === 'dist') return tpl.replace('/*__CSS__*/', () => css).replace('/*__JS__*/', () => js);
   // веб-версия публикуется внутри готовой обёртки документа — без <html>/<head>/<body>
   const body = tpl.slice(tpl.indexOf('<body>') + 6, tpl.indexOf('</body>'));
-  return `<title>Afterimage</title>\n<style>${css}</style>\n${body.replace('/*__JS__*/', () => js)}`;
+  return `<title>Afterimage</title>\n<link rel="artifact-thumbnail" href="thumb.jpg">\n<style>${css}</style>\n${body.replace('/*__JS__*/', () => js)}`;
 }
 
 const base = (inline) => ({
@@ -90,6 +90,7 @@ async function buildAll() {
   mkdirSync(join(root, 'build-artifact'), { recursive: true });
   writeFileSync(join(root, 'build-artifact', 'index.html'), page(b, 'web'));
   // веб-версия грузит иллюстрации отдельными файлами — кладём их рядом, чтобы папка работала сама по себе
+  cpSync(join(root, 'assets', 'thumb.jpg'), join(root, 'build-artifact', 'thumb.jpg'));
   for (const sub of ['bg', 'portraits', 'bodies']) cpSync(join(root, 'assets', sub), join(root, 'build-artifact', 'assets', sub), { recursive: true, filter: (f) => !f.endsWith('.json') });
   // Android: полный документ, иллюстрации лежат рядом в assets/ (внутри APK)
   mkdirSync(join(root, 'build-android'), { recursive: true });
