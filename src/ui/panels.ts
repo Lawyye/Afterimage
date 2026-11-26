@@ -266,7 +266,7 @@ export function openSettings() {
       range('Плёнка и CRT', 'Шум, развёртка', 'fx', 0, 1, 0.05, pct);
       toggle('Вспышки и глитчи', 'Отключите при светочувствительности', 'glitch');
       toggle('Тряска камеры', '', 'shake');
-      const row = el('div', 'set-row');
+      const row = el('div', 'set-row fs-row');
       row.innerHTML = `<label>Полный экран<small>${fullscreenSupported() ? 'Кнопка или F11' : 'Не поддерживается этим браузером'}</small></label><div class="toggle"><button type="button" class="fs-btn">${isFullscreen() ? 'ВЫЙТИ' : 'ВКЛЮЧИТЬ'}</button></div><output></output>`;
       row.querySelector('.fs-btn')!.addEventListener('click', async () => {
         const err = await toggleFullscreen();

@@ -40,7 +40,7 @@ export function showTitle(onNew: () => void, onContinue: (slot: string) => void)
   item('Хроника решений', '', () => openChronicle());
   item('Концовки', `${Meta.data.endings.length}/${ENDINGS.length}`, () => openEndings());
   item('Настройки', '', () => openSettings());
-  if (fullscreenSupported()) item('Полный экран', '', async () => { const err = await toggleFullscreen(); if (err) api.g.toast('bad', 'Полный экран', err); });
+  if (fullscreenSupported() && !/AfterimageApp/.test(navigator.userAgent)) item('Полный экран', '', async () => { const err = await toggleFullscreen(); if (err) api.g.toast('bad', 'Полный экран', err); });
   document.getElementById('stage')!.appendChild(root);
   audio.music('title', 0.5, 2);
   audio.ambience('rain_in', 2);

@@ -76,6 +76,9 @@ async function buildAll() {
   if (existsSync(join(dist, 'assets'))) rmSync(join(dist, 'assets'), { recursive: true });
   mkdirSync(join(root, 'build-artifact'), { recursive: true });
   writeFileSync(join(root, 'build-artifact', 'index.html'), page(b, 'web'));
+  // Android: полный документ, иллюстрации лежат рядом в assets/ (внутри APK)
+  mkdirSync(join(root, 'build-android'), { recursive: true });
+  writeFileSync(join(root, 'build-android', 'index.html'), page(b, 'dist'));
   console.log(`[build] dist/index.html — ${(Buffer.byteLength(html) / 1048576).toFixed(1)} MB (автономный)`);
 }
 

@@ -20,12 +20,36 @@ function preload(urls: string[], onProgress: (k: number) => void): Promise<void>
 
 import { toggleFullscreen } from './ui/fullscreen';
 
+import { audio } from './engine/audio';
+import { pauseOpen } from './ui/menus';
+import { panelOpen } from './ui/panels';
+import { docOpen } from './ui/docs';
+
+/** Мост для Android-приложения (APK): кнопка «Назад» и сворачивание. */
+function setupAndroidBridge(game: Game) {
+  const isApp = /AfterimageApp/.test(navigator.userAgent);
+  document.documentElement.classList.toggle('app', isApp);
+  const w = window as unknown as { __androidBack: () => string; __appPause: (on: boolean) => void };
+  w.__androidBack = () => {
+    const overlayOpen = pauseOpen() || panelOpen() || docOpen() || !!document.querySelector('.board, .cctv, .confirm, .ending-card');
+    if (!game.inGame && !overlayOpen) return 'exit';
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    return 'ok';
+  };
+  w.__appPause = (on: boolean) => {
+    const ctx = audio.ctx;
+    if (!ctx) return;
+    if (on) void ctx.suspend(); else void ctx.resume();
+  };
+}
+
 async function main() {
   document.getElementById('fs-rotate')?.addEventListener('click', async () => {
     const err = await toggleFullscreen();
     if (err) alertBox(err);
   });
   const game = new Game(storyJson);
+  setupAndroidBridge(game);
   (window as unknown as { __game: Game }).__game = game;
   (window as unknown as { __ui: unknown }).__ui = { openCCTV, openBoard, openDoc };
   const urls = [...BGS.map(bgUrl), ...allAssetUrls()];

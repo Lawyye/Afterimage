@@ -13,7 +13,9 @@
     "test:length": "node tests/length.mjs",
     "serve": "node tools/serve.mjs",
     "test:ui": "node tests/ui.mjs",
-    "test:hotspots": "node tests/hotspots.mjs"
+    "test:hotspots": "node tests/hotspots.mjs",
+    "apk": "npm run build && bash tools/android/build.sh",
+    "test:android": "node tests/android-sim.mjs"
   },
   "repository": {
     "type": "git",
