@@ -160,7 +160,7 @@ export class Dialogue {
       this.nameEl.style.setProperty('--c', '#b9c0bc');
       this.nameEl.classList.add('on');
     } else this.nameEl.classList.remove('on');
-    this.textEl.className = 'text' + (!line.speaker ? ' narr' : line.speaker === 'thought' ? ' thought' : line.speaker === 'sys' ? ' sys' : isOrpheus ? ' orpheus' : '');
+    this.textEl.className = 'text' + (!line.speaker ? ' narr' : line.speaker === 'thought' ? ' thought' : line.speaker === 'sys' ? ' sys' : isOrpheus ? ' orph-line' : '');
     this.sr.textContent = (ch?.name ? (line.name ?? ch.name) + ': ' : line.name ? line.name + ': ' : '') + plainText(line.text);
     // текст
     const segs = parseMarkup(line.text);

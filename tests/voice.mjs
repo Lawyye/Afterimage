@@ -74,18 +74,21 @@ await page.waitForTimeout(5000);
 // 4. пролог, звонок: объявление терминала звучит, на мысли героини голос обрывается, ОРФЕЙ звучит
 await A(() => window.__game.jump('prologue.call'));
 const state = () => A(() => { const g = window.__game, a = window.__ui.audio; return { sp: g.lastLine?.speaker ?? null, typing: g.dialogue.typing, waiting: g.dialogue.waiting, playing: a.voPlaying }; });
-let sysVoiced = false, cut = null, orph = false;
-for (let i = 0; i < 60 && !(orph && cut !== null); i++) {
+let sysVoiced = false, cut = null, orph = false, orphText = null;
+for (let i = 0; i < 60 && !(orph && cut !== null && orphText !== null); i++) {
   await page.waitForTimeout(300);
   const st = await state();
   if (st.sp === 'sys' && st.playing) sysVoiced = true;
   if (sysVoiced && cut === null && st.sp !== 'orpheus' && st.sp !== 'sys' && st.waiting && !st.typing) cut = !st.playing;
   if (st.sp === 'orpheus' && st.playing) orph = true;
-  if (!(orph && cut !== null)) await A(() => window.__game.dialogue.advance());
+  // текст реплики ОРФЕЯ виден, пока он говорит (раньше класс текста совпадал с классом его «глаза» и текст гас)
+  if (st.sp === 'orpheus' && st.waiting && !st.typing && orphText === null) orphText = await A(() => { const t = document.querySelector('.dlg .text'), cs = getComputedStyle(t), r = t.getBoundingClientRect(); return cs.opacity === '1' && cs.visibility === 'visible' && t.textContent.trim().length > 0 && r.height > 0; });
+  if (!(orph && cut !== null && orphText !== null)) await A(() => window.__game.dialogue.advance());
 }
 ok(sysVoiced, 'объявление терминала звучит голосом');
 ok(cut === true, 'голос обрывается, когда игрок идёт дальше');
 ok(orph, 'реплика ОРФЕЯ звучит голосом');
+ok(orphText === true, 'текст реплики ОРФЕЯ виден на экране');
 
 // 5. журнал реплик: «переслушать»
 await page.keyboard.press('l');

@@ -203,7 +203,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .dlg .text.narr { color: #d6dad4; font-weight: 400; }
 .dlg .text.thought { font-style: italic; color: #c4d0d5; font-weight: 400; }
 .dlg .text.sys { font: 400 calc(29px * var(--ts, 1))/1.55 var(--f-mono); color: var(--phos); }
-.dlg .text.orpheus { color: #cfeee0; }
+/* класс не «orpheus»: так называется светящийся круг ОРФЕЯ, и его правила (скрыт, своя позиция) прятали текст */
+.dlg .text.orph-line { color: #cfeee0; }
 .dlg .text .em { color: var(--cream); font-weight: 500; }
 .dlg .text .red { color: var(--red); font-weight: 500; }
 .dlg .text .gl { display: inline-block; color: #fff; animation: txtgl .3s steps(2) infinite; }
