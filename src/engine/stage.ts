@@ -43,17 +43,22 @@ let ambientUrl: string | null = null;
 export function setAmbient(url: string | null) {
   if (url === ambientUrl) return;
   ambientUrl = url;
-  const a = document.getElementById('ambient');
-  if (!a) return;
+  const a = document.getElementById('ambient') as HTMLCanvasElement | null;
+  if (!a || !document.getElementById('viewport')?.classList.contains('fill')) return;
   a.classList.remove('on');
-  if (url) {
-    const next = url;
-    setTimeout(() => {
-      if (ambientUrl !== next) return;
-      a.style.backgroundImage = `url("${next}")`;
-      a.classList.add('on');
-    }, 300);
-  }
+  if (!url) return;
+  // фон уменьшается до 48×27 точек и растягивается: мягкое «размытие» без дорогого фильтра
+  const img = new Image();
+  img.onload = () => {
+    if (ambientUrl !== url) return;
+    const c = a.getContext('2d');
+    if (!c) return;
+    c.drawImage(img, 0, 0, a.width, a.height);
+    c.fillStyle = 'rgba(0,0,0,.62)';
+    c.fillRect(0, 0, a.width, a.height);
+    a.classList.add('on');
+  };
+  img.src = url;
 }
 /** Промис, который выполняется, когда картинка загружена и декодирована (или не загрузилась). */
 export function whenDecoded(img: HTMLImageElement): Promise<void> {
@@ -150,7 +155,12 @@ export class Stage {
     this.stage.style.setProperty('--mz', String(mz));
     this.stage.classList.toggle('compact', mz > 1.05);
     // поля по бокам/сверху есть, только если пропорции экрана заметно отличаются от 16:9
-    document.getElementById('viewport')?.classList.toggle('fill', Math.abs(vw / vh - 16 / 9) > 0.04);
+    const vp = document.getElementById('viewport');
+    const fill = Math.abs(vw / vh - 16 / 9) > 0.04;
+    if (vp && vp.classList.contains('fill') !== fill) {
+      vp.classList.toggle('fill', fill);
+      const u = ambientUrl; ambientUrl = null; setAmbient(u);
+    }
   }
   get uiZoom() {
     return parseFloat(this.stage.style.getPropertyValue('--mz') || '1') || 1;
@@ -200,7 +210,7 @@ export class Stage {
     return this.currentBg?.querySelector('.drift-wrap') ?? null;
   }
   private makeFx(f: BgFx): HTMLElement {
-    const d = el('div', `fx fx-${f.type}`);
+    const d = el('div', `fx fx-${f.type}` + (f.w * f.h > 250000 && f.type !== 'dim' ? ' fx-big' : ''));
     d.style.left = `${f.x}px`;
     d.style.top = `${f.y}px`;
     d.style.width = `${f.w}px`;
@@ -418,7 +428,9 @@ export class Stage {
     };
   }
   restore(s: StageSnapshot) {
-    this.hide('all');
+    // оставляем тех, кто уже на сцене на своём месте — без мигания при «Назад» и загрузке
+    const want = new Map(s.portraits.map((p) => [p.id, p]));
+    for (const [id, p] of [...this.portraits]) if (want.get(id)?.side !== p.side) this.hide(id);
     this.setBg(s.bg, 0.4);
     for (const p of s.portraits) this.show(p.id, p.expr, p.side);
     this.setMemory(s.memory);

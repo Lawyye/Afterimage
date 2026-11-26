@@ -29,11 +29,12 @@ thought: ...Или знаю?
 
 = tick
 // после звонка ОРФЕЯ время на сборы ограничено
-{ not called && apt_seen >= 3:
+{ not called && apt_seen >= 4:
     -> call
 }
 { called:
     ~ leave_soon = leave_soon - 1
+    ~ inv_limit = leave_soon
     { leave_soon <= 0:
         @ # sfx: buzz
         sys: ТАКСИ ОЖИДАЕТ У ПОДЪЕЗДА.
@@ -188,6 +189,7 @@ thought: Я не помню, как легла. Я вообще не помню 
 = call
 ~ called = true
 ~ leave_soon = 3
+~ inv_limit = 3
 @ # sfx: phone # music: insomnia 0.5
 sys: ВХОДЯЩИЙ ВЫЗОВ — ОРФЕЙ // АНАЛИТИЧЕСКАЯ СИСТЕМА ОПП
 orpheus/idle: Инспектор Рейн. Вы не спите.
@@ -246,10 +248,11 @@ orpheus: Что вам снится?
 = call_end
 orpheus: Такси будет у подъезда через три минуты.
 @ # goal: Собраться. Такси через три минуты.
-thought: Три минуты. Успею осмотреться ещё немного — или уйти сразу.
+thought: Три минуты. Успею осмотреть ещё три места — или уйти сразу.
 -> look
 
 = leave
+~ inv_limit = 0
 @ # sfx: door # music: off 3
 { not ev_coat:
     Я снимаю пальто с крюка — и замираю. Оно мокрое насквозь, хотя я не выходила из дома.

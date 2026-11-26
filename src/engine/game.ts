@@ -3,6 +3,7 @@
 import { Story } from 'inkjs';
 import { el, escapeHtml, hash, sleep, Token, Cancelled } from './util';
 import { audio } from './audio';
+import { settings } from './settings';
 import { Stage, Side, hasPortrait } from './stage';
 import { Dialogue, Line, plainText } from './dialogue';
 import { ChoiceUI, Investigation, parseChoice } from './choices';
@@ -19,6 +20,9 @@ import { openJournal, openLog, openChronicle, panelOpen, closePanel } from '../u
 import { showTitle, closeTitle, togglePause, pauseOpen, closePause, chapterCard, endingCard, intro } from '../ui/menus';
 import { icon } from '../ui/icons';
 import { toggleFullscreen } from '../ui/fullscreen';
+
+/** Снимок состояния: то же, что сохранение, плюс таймер выбора */
+type Snapshot = SaveData & { last?: Line | null; timer?: number };
 
 const LINE_RE = /^([a-z]+)(_)?(?:\/([a-z]+))?:\s*([\s\S]*)$/;
 
@@ -59,6 +63,7 @@ export class Game implements GameApi {
   private pendingTimer = 0;
   private autosavePending = false;
   private chapterCheckpoint = false;
+  private history: Snapshot[] = []; // снимки для «Назад»
   private busy = false; // блокирующие оверлеи
   private suppressToasts = false;
   private varNames: string[] = [];
@@ -70,7 +75,7 @@ export class Game implements GameApi {
     this.choices = new ChoiceUI(this.ui);
     this.investigation = new Investigation(this.ui, this.stage);
     this.dialogue.onLog = () => openLog();
-    this.dialogue.onQuick = (m) => (m === 'hide' ? this.hideUi() : m === 'qsave' ? this.quickSave() : this.quickLoad());
+    this.dialogue.onQuick = (m) => (m === 'back' ? this.rollback() : m === 'hide' ? this.hideUi() : m === 'qsave' ? this.quickSave() : this.quickLoad());
     this.stage.onSeen = (key) => Meta.seeArt(key);
     this.ui.append(this.hud, this.toasts);
     this.buildHud();
@@ -202,6 +207,7 @@ export class Game implements GameApi {
       else if (e.key === 'Control') this.dialogue.setSkip(true);
       else if (k === 'f' || k === 'а') this.hudAction('fs');
       else if (k === 'h' || k === 'р') this.hideUi();
+      else if (e.key === 'Backspace' || e.key === 'PageUp') { e.preventDefault(); this.rollback(); }
     });
     window.addEventListener('keyup', (e) => { if (e.key === 'Control' && this.inGame) this.dialogue.setSkip(false); });
     window.addEventListener('wheel', (e) => { if (this.inGame && e.deltaY < 0 && !panelOpen() && !this.busy && !pauseOpen()) openLog(); }, { passive: true });
@@ -228,11 +234,13 @@ export class Game implements GameApi {
     this.inGame = true;
     this.busy = false;
     this.stage.setUiHidden(false);
+    this.stage.stage.classList.remove('inv-mode');
     this.hud.classList.remove('hidden');
     return this.token;
   }
   newGame() {
     const token = this.beginRun();
+    this.history = [];
     this.suppressToasts = true;
     this.story.ResetState();
     this.suppressToasts = false;
@@ -250,6 +258,11 @@ export class Game implements GameApi {
   load(slot: string) {
     const d = Saves.read(slot);
     if (!d) return;
+    this.history = [];
+    this.restore(d, false);
+  }
+  /** Восстановить состояние из сохранения или снимка «Назад» (quiet — без уведомления, текст сразу целиком) */
+  private restore(d: Snapshot, quiet: boolean) {
     const token = this.beginRun();
     this.suppressToasts = true;
     try {
@@ -268,13 +281,49 @@ export class Game implements GameApi {
     audio.music(d.music, d.intensity, 1);
     audio.ambience(d.amb, 1);
     this.updateHud();
-    this.toast('ev', 'Загружено', `${d.chapterTitle} · ${d.clock}`);
-    const last = (d as SaveData & { last?: Line | null }).last ?? null;
-    void this.run(token, d.current.kind === 'line' ? d.current.line : null, d.current.kind === 'choices' ? last : null);
+    if (!quiet) this.toast('ev', 'Загружено', `${d.chapterTitle} · ${d.clock}`);
+    this.pendingTimer = d.timer ?? 0;
+    const last = d.last ?? null;
+    void this.run(token, d.current.kind === 'line' ? d.current.line : null, d.current.kind === 'choices' ? last : null, quiet);
+  }
+  /** «Назад»: вернуться к предыдущей реплике. Через принятые решения — только если это разрешено в настройках. */
+  rollback() {
+    if (!this.inGame || this.busy || pauseOpen() || panelOpen() || docOpen()) return;
+    // на экране выбора «Назад» возвращает реплику, которая видна под вариантами
+    if (this.atChoices) {
+      if (this.history[this.history.length - 1]?.current.kind === 'choices') this.history.pop();
+      const line = this.history.pop();
+      if (line) { audio.sfx('back', 0.6); this.restore(line, true); }
+      return;
+    }
+    if (this.history.length < 2) {
+      audio.sfx('wrong');
+      this.toast('bad', 'Назад', settings.rollbackChoices ? 'Дальше назад нельзя.' : 'Решение уже принято — его не отменить. Перемотку через решения можно включить в настройках.');
+      return;
+    }
+    audio.sfx('back', 0.6);
+    this.history.pop();
+    this.restore(this.history.pop()!, true);
+  }
+  private snapshot(): Snapshot {
+    return {
+      v: 1, time: Date.now(), chapter: this.chapter, chapterTitle: this.chapterTitle, clock: this.clock, goal: this.goal,
+      ink: this.story.state.toJson(), stage: this.stage.snapshot(), music: audio.currentMusic, amb: audio.currentAmb, intensity: audio.intensity,
+      current: this.atChoices ? { kind: 'choices' } : { kind: 'line', line: this.lastLine! },
+      log: this.log.slice(-200), examined: [...this.examined], unread: [...this.unread], runChron: JSON.parse(JSON.stringify(this.runChron)),
+      last: this.lastLine,
+    };
+  }
+  private pushHistory(timer = 0) {
+    const s = this.snapshot();
+    if (timer) s.timer = timer;
+    this.history.push(s);
+    if (this.history.length > 80) this.history.shift();
   }
   /** Отладка/тесты: начать с указанного узла сценария */
   jump(path: string, vars: Record<string, boolean | number> = {}) {
     const token = this.beginRun();
+    this.history = [];
     this.story.ResetState();
     for (const [k, v] of Object.entries(vars)) this.story.variablesState.$(k, v);
     this.story.ChoosePathString(path);
@@ -315,20 +364,13 @@ export class Game implements GameApi {
   }
   save(slot: string): boolean {
     if (!this.canSave()) return false;
-    const d: SaveData & { last?: Line | null } = {
-      v: 1, time: Date.now(), chapter: this.chapter, chapterTitle: this.chapterTitle, clock: this.clock, goal: this.goal,
-      ink: this.story.state.toJson(), stage: this.stage.snapshot(), music: audio.currentMusic, amb: audio.currentAmb, intensity: audio.intensity,
-      current: this.atChoices ? { kind: 'choices' } : { kind: 'line', line: this.lastLine! },
-      log: this.log.slice(-200), examined: [...this.examined], unread: [...this.unread], runChron: this.runChron,
-      last: this.lastLine,
-    };
-    return Saves.write(slot, d);
+    return Saves.write(slot, this.snapshot());
   }
 
   // -------------------------------------------------------------- main loop
-  private async run(token: Token, resumeLine: Line | null = null, contextLine: Line | null = null) {
+  private async run(token: Token, resumeLine: Line | null = null, contextLine: Line | null = null, instant = false) {
     try {
-      if (resumeLine) await this.showLine(resumeLine, token, false);
+      if (resumeLine) await this.showLine(resumeLine, token, !!(resumeLine as Line & { voiceOnly?: boolean }).voiceOnly, true, instant);
       else if (contextLine) await this.showLine(contextLine, token, false, false);
       while (!token.cancelled) {
         if (this.story.canContinue) {
@@ -356,7 +398,7 @@ export class Game implements GameApi {
     }
   }
 
-  private async showLine(line: Line, token: Token, voiceOnly: boolean, wait = true) {
+  private async showLine(line: Line, token: Token, voiceOnly: boolean, wait = true, instant = false) {
     this.atChoices = false;
     const sp = line.speaker;
     if (sp && hasPortrait(sp) && !voiceOnly) {
@@ -368,6 +410,7 @@ export class Game implements GameApi {
     const h = hash(line.text);
     const seen = Meta.isSeen(h);
     if (wait) {
+      this.pushHistory();
       this.log.push({ who: sp, name: line.name, text: line.text });
       if (this.log.length > 400) this.log.splice(0, this.log.length - 400);
     }
@@ -379,7 +422,7 @@ export class Game implements GameApi {
       this.dialogue.render(line);
       return;
     }
-    await this.dialogue.show(line, token, seen);
+    await this.dialogue.show(line, token, seen, instant);
     Meta.markSeen(h);
   }
 
@@ -506,12 +549,13 @@ export class Game implements GameApi {
     if (auto) { this.atChoices = false; return auto.index; }
     const timer = this.pendingTimer;
     this.pendingTimer = 0;
+    if (settings.rollbackChoices) this.pushHistory(timer);
     this.stage.mouth(false);
     let idx: number;
     if (parsed.some((c) => c.kind === 'hotspot')) {
       this.dialogue.hide();
       this.stage.setSpeaker(null);
-      idx = await this.investigation.present(parsed, this.stage.bgId ?? '', this.examined, token);
+      idx = await this.investigation.present(parsed, this.stage.bgId ?? '', this.examined, token, (this.story.variablesState.$('inv_limit') as number) || 0);
     } else {
       if (this.dialogue.skip) this.dialogue.setSkip(false);
       if (this.dialogue.auto) this.dialogue.setAuto(false);
@@ -520,6 +564,8 @@ export class Game implements GameApi {
       if (c.kind === 'normal') this.log.push({ who: null, text: c.text, kind: 'choice' });
     }
     this.atChoices = false;
+    // решение принято: без разрешения в настройках назад через него не отмотать
+    if (!settings.rollbackChoices) this.history = [];
     return idx;
   }
 }

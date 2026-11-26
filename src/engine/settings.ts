@@ -14,6 +14,7 @@ export interface Settings {
   timers: boolean; // таймеры на выборах
   vibrate: boolean; // вибрация в ключевые моменты (телефоны)
   boxAlpha: number; // непрозрачность окна текста 0.3..1
+  rollbackChoices: boolean; // «Назад» может отматывать принятые решения
 }
 
 const defaults: Settings = {
@@ -30,6 +31,7 @@ const defaults: Settings = {
   timers: true,
   vibrate: true,
   boxAlpha: 1,
+  rollbackChoices: false,
 };
 
 type Listener = (s: Settings) => void;

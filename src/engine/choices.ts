@@ -102,7 +102,8 @@ export class Investigation {
   private label = el('div', 'hs-label');
   constructor(private ui: HTMLElement, private stage: Stage) {}
 
-  present(choices: ParsedChoice[], bgId: string, examined: Set<string>, token: Token): Promise<number> {
+  /** limit > 0 — сколько ещё мест успеет осмотреть героиня (ограничение по времени) */
+  present(choices: ParsedChoice[], bgId: string, examined: Set<string>, token: Token, limit = 0): Promise<number> {
     const defs = HOTSPOTS[bgId] ?? {};
     const hs = choices.filter((c) => c.kind === 'hotspot');
     const exit = choices.find((c) => c.kind === 'system' && c.id === 'exit');
@@ -114,9 +115,13 @@ export class Investigation {
       svg.setAttribute('class', 'hs-svg');
       svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:3';
       const banner = el('div', 'inv-banner');
+      this.stage.stage.classList.add('inv-mode');
       const total = hs.length;
       const seenCount = hs.filter((c) => examined.has(`${bgId}.${c.id}`)).length;
-      banner.innerHTML = `<b>ОСМОТР</b><span>Осмотрено ${seenCount} из ${total}${exit ? '' : ' · исследуйте место'}</span>`;
+      const left = Math.min(limit, total - seenCount);
+      const word = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? 'место' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'места' : 'мест');
+      banner.innerHTML = `<b>ОСМОТР</b><span>Осмотрено ${seenCount} из ${total}${exit ? '' : ' · исследуйте место'}</span>`
+        + (limit > 0 && left > 0 ? `<em class="lim">Успею осмотреть ещё ${left} ${word(left)}</em>` : '');
       const list = el('div', 'inv-list');
       let done = false;
       const finish = (c: ParsedChoice) => {
@@ -129,6 +134,7 @@ export class Investigation {
       };
       const cleanup = () => {
         svg.remove(); banner.remove(); list.remove(); exitBtn?.remove(); this.label.remove();
+        this.stage.stage.classList.remove('inv-mode');
         window.removeEventListener('keydown', onKey);
       };
       const items: { c: ParsedChoice; g: SVGGElement }[] = [];
@@ -144,6 +150,7 @@ export class Investigation {
         const [dx, dy] = d.dot ?? [x + w / 2, y + h / 2];
         const g = document.createElementNS(svgNS, 'g');
         g.setAttribute('class', 'hs' + (examined.has(`${bgId}.${c.id}`) ? ' done' : ''));
+        g.dataset.id = c.id!;
         g.innerHTML = `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/><circle class="ring" cx="${dx}" cy="${dy}" r="13"/><circle class="pulse" cx="${dx}" cy="${dy}" r="9"/>`;
         g.addEventListener('mouseenter', () => { audio.sfx('hover', 0.5); this.showLabel(d.label, d.sub, dx, dy - 10); });
         g.addEventListener('mouseleave', () => this.label.classList.remove('on'));

@@ -14,6 +14,7 @@ VAR orpheus_silent = false
 VAR orpheus_reported = false
 VAR orpheus_ally = false
 VAR orpheus_cut = false
+VAR inv_limit = 0 // сколько мест ещё можно осмотреть до ухода (0 — без ограничения)
 VAR leo_met = false
 VAR leo_named = false
 VAR leo_alive = true

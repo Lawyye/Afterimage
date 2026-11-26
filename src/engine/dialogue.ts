@@ -36,15 +36,13 @@ export function plainText(src: string) {
   return parseMarkup(src).map((s) => s.t).join('');
 }
 
-const ORPHEUS_SVG = `<svg viewBox="-150 -150 300 300">
-<defs><radialGradient id="orpg" cx="0" cy="0" r="1"><stop offset="0" stop-color="#d8ffe4" stop-opacity=".95"/><stop offset=".35" stop-color="#7ff0a2" stop-opacity=".5"/><stop offset="1" stop-color="#1f6b40" stop-opacity="0"/></radialGradient></defs>
-<g class="o-rot1"><circle r="128" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2 10" opacity=".6"/></g>
-<g class="o-rot2"><circle r="108" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="60 18 4 18" opacity=".55"/></g>
-<circle r="86" fill="none" stroke="currentColor" stroke-width="1" opacity=".35"/>
-<g class="o-iris"><circle r="62" fill="url(#orpg)" opacity=".55"/><circle r="40" fill="none" stroke="currentColor" stroke-width="3" opacity=".9"/>
-<circle class="o-pupil" r="14" fill="currentColor"/></g>
-<g opacity=".5"><path d="M-150 0H-100M100 0H150M0 -150V-100M0 100V150" stroke="currentColor" stroke-width="1"/></g>
-</svg><div class="lbl">ОРФЕЙ</div>`;
+const SVG = (inner: string) => `<svg viewBox="-150 -150 300 300">${inner}</svg>`;
+// каждое кольцо — отдельный слой: вращение идёт на видеокарте и не заставляет перерисовывать картинку
+const ORPHEUS_SVG = `<div class="o-ring o-r1">${SVG('<circle r="128" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2 10" opacity=".6"/>')}</div>
+<div class="o-ring o-r2">${SVG('<circle r="108" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="60 18 4 18" opacity=".55"/>')}</div>
+<div class="o-ring o-core">${SVG('<circle r="86" fill="none" stroke="currentColor" stroke-width="1" opacity=".35"/><g opacity=".5"><path d="M-150 0H-100M100 0H150M0 -150V-100M0 100V150" stroke="currentColor" stroke-width="1"/></g>')}</div>
+<div class="o-ring o-iris">${SVG('<defs><radialGradient id="orpg" cx="0" cy="0" r="1"><stop offset="0" stop-color="#d8ffe4" stop-opacity=".95"/><stop offset=".35" stop-color="#7ff0a2" stop-opacity=".5"/><stop offset="1" stop-color="#1f6b40" stop-opacity="0"/></radialGradient></defs><circle r="62" fill="url(#orpg)" opacity=".55"/><circle r="40" fill="none" stroke="currentColor" stroke-width="3" opacity=".9"/><circle r="14" fill="currentColor"/>')}</div>
+<div class="lbl">ОРФЕЙ</div>`;
 
 export class Dialogue {
   root = el('div', 'dlg hidden');
@@ -60,7 +58,7 @@ export class Dialogue {
   skip = false;
   onLog: (() => void) | null = null;
   /** Кнопки быстрого меню: скрыть интерфейс, быстрое сохранение и загрузка */
-  onQuick: ((m: 'hide' | 'qsave' | 'qload') => void) | null = null;
+  onQuick: ((m: 'back' | 'hide' | 'qsave' | 'qload') => void) | null = null;
   onModeChange: (() => void) | null = null;
 
   constructor(private ui: HTMLElement, private stage: Stage) {
@@ -68,14 +66,14 @@ export class Dialogue {
     const inner = el('div', 'inner');
     inner.appendChild(this.textEl);
     this.root.append(rule, this.nameEl, inner, this.nextEl, this.modes);
-    this.modes.innerHTML = `<button data-m="log" title="Журнал реплик (L)">ЛОГ</button><button data-m="auto" title="Авточтение (A)">АВТО</button><button data-m="skip" title="Пропуск прочитанного (S)">ПРОПУСК</button><button data-m="hide" title="Скрыть интерфейс (H)">СКРЫТЬ</button><button data-m="qsave" class="wide" title="Быстрое сохранение (F5)">Б.СОХР</button><button data-m="qload" class="wide" title="Быстрая загрузка (F9)">Б.ЗАГР</button>`;
+    this.modes.innerHTML = `<button data-m="back" title="Назад к прошлой реплике (Backspace)">◂ НАЗАД</button><button data-m="log" title="Журнал реплик (L)">ЛОГ</button><button data-m="auto" title="Авточтение (A)">АВТО</button><button data-m="skip" title="Пропуск прочитанного (S)">ПРОПУСК</button><button data-m="hide" title="Скрыть интерфейс (H)">СКРЫТЬ</button><button data-m="qsave" class="wide" title="Быстрое сохранение (F5)">Б.СОХР</button><button data-m="qload" class="wide" title="Быстрая загрузка (F9)">Б.ЗАГР</button>`;
     this.modes.addEventListener('click', (e) => {
       e.stopPropagation();
       const m = (e.target as HTMLElement).closest('button')?.dataset.m;
       if (m === 'auto') this.setAuto(!this.auto);
       if (m === 'skip') this.setSkip(!this.skip);
       if (m === 'log') this.onLog?.();
-      if (m === 'hide' || m === 'qsave' || m === 'qload') this.onQuick?.(m);
+      if (m === 'back' || m === 'hide' || m === 'qsave' || m === 'qload') this.onQuick?.(m);
     });
     this.root.addEventListener('click', () => this.advance());
     this.orpheus.innerHTML = ORPHEUS_SVG;
@@ -134,7 +132,7 @@ export class Dialogue {
   }
 
   /** Показ реплики; промис завершается, когда игрок переходит дальше. */
-  async show(line: Line, token: Token, seen: boolean) {
+  async show(line: Line, token: Token, seen: boolean, forceInstant = false) {
     const ch = line.speaker ? CHARACTERS[line.speaker] : undefined;
     this.showBox();
     const isOrpheus = line.speaker === 'orpheus';
@@ -170,7 +168,7 @@ export class Dialogue {
       if (wrap) this.textEl.appendChild(wrap);
     }
     this.nextEl.classList.remove('on');
-    const instant = settings.textSpeed <= 0 || (this.skip && seen);
+    const instant = forceInstant || settings.textSpeed <= 0 || (this.skip && seen);
     const talking = !!(ch?.portrait && this.stage.isShown(line.speaker!));
     if (!instant) {
       this.typing = true;
@@ -179,6 +177,9 @@ export class Dialogue {
       this.finishTyping = () => (done = true);
       const delay = 1000 / Math.max(10, settings.textSpeed);
       const blipKind = ch?.blip ?? 'soft';
+      // печать по часам: у каждой буквы своё время появления; если браузер запоздал
+      // (таймеры на телефоне грубые), буквы догоняют, а не копят задержку
+      let due = performance.now();
       for (let i = 0; i < chars.length; i++) {
         if (token.cancelled) break;
         if (done) break;
@@ -191,10 +192,13 @@ export class Dialogue {
         const p = pauses.get(i + 1);
         if (p) {
           if (talking) this.stage.mouth(false);
-          await this.wait(p, () => done);
+          due += p;
+          await this.wait(due - performance.now(), () => done);
           if (talking && !done) this.stage.mouth(true);
         }
-        await this.wait(d, () => done);
+        due += d;
+        const lag = due - performance.now();
+        if (lag > 2) await this.wait(lag, () => done);
       }
       this.typing = false;
       this.finishTyping = null;
@@ -222,12 +226,14 @@ export class Dialogue {
   }
   private wait(ms: number, stop: () => boolean): Promise<void> {
     return new Promise((res) => {
-      const t0 = performance.now();
+      if (ms <= 0) { res(); return; }
+      const end = performance.now() + ms;
       const step = () => {
-        if (stop() || performance.now() - t0 >= ms) res();
-        else setTimeout(step, Math.min(16, ms));
+        const left = end - performance.now();
+        if (stop() || left <= 1) res();
+        else setTimeout(step, Math.min(left, 60));
       };
-      setTimeout(step, Math.min(ms, 16));
+      setTimeout(step, Math.min(ms, 60));
     });
   }
 }

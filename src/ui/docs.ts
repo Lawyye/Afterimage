@@ -20,8 +20,10 @@ export function openDoc(id: string): Promise<void> {
     const btn = el('button', 'doc-close', 'ЗАКРЫТЬ  ⏎');
     wrap.append(doc);
     root.append(bg, wrap, btn);
+    let closed = false;
     const close = () => {
-      if (!open) return;
+      if (closed) return;
+      closed = true;
       open = false;
       audio.sfx('back');
       window.removeEventListener('keydown', onKey, true);
@@ -31,7 +33,9 @@ export function openDoc(id: string): Promise<void> {
     const onKey = (e: KeyboardEvent) => {
       if (['Escape', 'Enter', ' ', 'Space'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); close(); }
     };
-    setTimeout(() => window.addEventListener('keydown', onKey, true), 250);
+    // клавиши подключаются с задержкой (чтобы Enter, открывший документ, его же не закрыл);
+    // если документ успели закрыть раньше — не подключаем, иначе обработчик «съест» клавиши навсегда
+    setTimeout(() => { if (!closed) window.addEventListener('keydown', onKey, true); }, 250);
     btn.addEventListener('click', close);
     wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
   });

@@ -54,6 +54,7 @@ const shot = async (key) => {
 };
 
 let steps = 0, ended = null, savedOnce = false, loadedOnce = false;
+let lastSig = '', same = 0;
 const t0 = Date.now();
 while (steps < 3000 && !ended) {
   steps++;
@@ -70,6 +71,10 @@ while (steps < 3000 && !ended) {
       speaker: q('.dlg .name.on b')?.textContent ?? '',
     };
   });
+  // детектор зависания: 60 шагов без изменений — снимок и диагностика
+  const sig = JSON.stringify(st) + (await page.locator('.dlg .text').textContent().catch(() => ''));
+  if (sig === lastSig) { if (++same === 60) { await page.screenshot({ path: `${out}/stuck.png` }); errors.push('Зависание: ' + JSON.stringify(await page.evaluate(() => ({ txt: document.querySelector('.dlg .text')?.textContent.slice(0, 80), dlgHidden: document.querySelector('.dlg').classList.contains('hidden'), busy: window.__game.busy, atChoices: window.__game.atChoices, uiHidden: window.__game.stage.uiHidden, waiting: window.__game.dialogue.waiting, overlay: [...document.getElementById('overlay').children].map((c) => c.className), path: window.__game.story.state.currentPathString, active: document.activeElement?.outerHTML.slice(0, 80), canSave: window.__game.canSave(), hist: window.__game.history?.length }))));
+      break; } } else { same = 0; lastSig = sig; }
   if (st.ending) { await page.waitForTimeout(4500); await shot('ending'); ended = await page.evaluate(() => document.querySelector('.ending-card h2')?.textContent); break; }
   if (st.title && steps > 5) { errors.push('Неожиданный возврат на титульный экран'); break; }
   if (st.bg) await shot('bg-' + st.bg + (st.memory ? '-mem' : ''));

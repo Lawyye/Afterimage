@@ -11,6 +11,7 @@
     "test:e2e": "node tests/e2e.mjs",
     "test": "npm run typecheck && npm run test:story && npm run build && npm run test:ui && npm run test:features && npm run test:hotspots && npm run test:e2e",
     "test:features": "node tests/features.mjs",
+    "test:perf": "node tests/perf.mjs",
     "test:length": "node tests/length.mjs",
     "serve": "node tools/serve.mjs",
     "test:ui": "node tests/ui.mjs",

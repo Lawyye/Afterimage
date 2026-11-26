@@ -116,6 +116,17 @@ def overlay_box(region, src_size):
 # кадры для фотографий в документах — с исходным фоном, без маски
 PHOTO = {('sonya', 'smile'), ('sonya', 'laugh'), ('mira', 'smile')}
 
+FADE_FROM, FADE_TO = 0.72, 0.98   # нижний край бюста растворяется (вместо CSS-маски — дешевле для телефонов)
+def bottom_fade(im):
+    """Плавно гасит альфу снизу: от FADE_FROM до FADE_TO высоты кадра (накладки рта/глаз выше 70 %)."""
+    a = np.asarray(im.getchannel('A'), dtype=np.float32)
+    y = np.linspace(0, 1, a.shape[0], dtype=np.float32)[:, None]
+    t = np.clip((y - FADE_FROM) / (FADE_TO - FADE_FROM), 0, 1)
+    k = 1 - t * t * (3 - 2 * t)
+    out = im.copy()
+    out.putalpha(Image.fromarray(np.clip(a * k, 0, 255).astype(np.uint8)))
+    return out
+
 def save(im, name):
     im.save(os.path.join(OUT, name + '.webp'), 'WEBP', quality=84, method=6, alpha_quality=90)
 
@@ -159,7 +170,7 @@ def main():
             if n == 'talk': continue
             a_hi = alpha_for(ch, n, hi[n])
             base = finish(with_alpha(hi[n], a_hi))
-            save(base, f'{ch}_{n}')
+            save(bottom_fade(base), f'{ch}_{n}')
             if (ch, n) in PHOTO:
                 save(finish(hi[n]).resize((600, 808), Image.LANCZOS), f'{ch}_{n}_photo')
             e = {}
@@ -175,4 +186,5 @@ def main():
         print(ch, 'ok', len(entry['exprs']))
     json.dump(manifest, open(man_path, 'w'), indent=1, ensure_ascii=False)
 
-main()
+if __name__ == '__main__':
+    main()

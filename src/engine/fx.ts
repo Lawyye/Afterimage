@@ -33,7 +33,10 @@ export class Weather {
   private spawn(): Drop {
     return { x: Math.random() * 2100 - 90, y: -Math.random() * 1100, l: 18 + Math.random() * 40, v: 1500 + Math.random() * 900, a: 0.08 + Math.random() * 0.22 };
   }
+  private lowfx = document.getElementById('stage')?.classList.contains('lowfx') ?? false;
   private loop(t: number) {
+    // на телефонах дождь рисуется 30 раз в секунду — глазу незаметно, работы вдвое меньше
+    if (this.lowfx && t - this.last < 30 && this.last) { requestAnimationFrame((tt) => this.loop(tt)); return; }
     const dt = Math.min(0.05, (t - this.last) / 1000 || 0.016);
     this.last = t;
     this.density += (this.target - this.density) * Math.min(1, dt * 1.5);
@@ -42,10 +45,11 @@ export class Weather {
     if (this.drops.length > n) this.drops.length = n;
     const c = this.ctx;
     if (n === 0 && this.lightning <= 0) {
-      if (!this.cleared) { c.clearRect(0, 0, 1920, 1080); this.cleared = true; }
+      if (!this.cleared) { c.clearRect(0, 0, 1920, 1080); this.cleared = true; this.canvas.style.display = 'none'; }
       requestAnimationFrame((tt) => this.loop(tt));
       return;
     }
+    if (this.cleared) this.canvas.style.display = '';
     this.cleared = false;
     c.clearRect(0, 0, 1920, 1080);
     if (this.lightning > 0) {
@@ -57,6 +61,8 @@ export class Weather {
       const memory = this.mode === 'memory';
       c.lineCap = 'round';
       c.lineWidth = memory ? 2 : 2.6;
+      // капли группируются по прозрачности: 4 обводки за кадр вместо сотен
+      const paths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
       for (const d of this.drops) {
         d.y += d.v * dt * (memory ? -0.35 : 1); // в памяти дождь идёт вверх
         d.x += d.v * this.wind * dt * (memory ? -0.35 : 1);
@@ -64,11 +70,14 @@ export class Weather {
           if (Math.random() < 0.35) this.splashes.push({ x: d.x, y: 960 + Math.random() * 120, t: 0 });
           Object.assign(d, this.spawn(), { y: -40 });
         } else if (memory && d.y < -60) Object.assign(d, this.spawn(), { y: 1100 + Math.random() * 200 });
-        c.strokeStyle = memory ? `rgba(255,190,190,${d.a})` : `rgba(190,210,230,${d.a})`;
-        c.beginPath();
-        c.moveTo(d.x, d.y);
-        c.lineTo(d.x - d.l * this.wind, d.y - d.l);
-        c.stroke();
+        const p = paths[Math.min(3, Math.floor((d.a - 0.08) / 0.055))];
+        p.moveTo(d.x, d.y);
+        p.lineTo(d.x - d.l * this.wind, d.y - d.l);
+      }
+      for (let k = 0; k < 4; k++) {
+        const a = (0.08 + 0.055 * (k + 0.5)).toFixed(3);
+        c.strokeStyle = memory ? `rgba(255,190,190,${a})` : `rgba(190,210,230,${a})`;
+        c.stroke(paths[k]);
       }
       c.lineWidth = 1;
       for (let i = this.splashes.length - 1; i >= 0; i--) {

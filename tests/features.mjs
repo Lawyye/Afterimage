@@ -131,6 +131,53 @@ for (const vp of [{ name: '1280x720', w: 1280, h: 720, touch: false }, { name: '
   ok((await page.locator('.person:not(.unknown) h4', { hasText: 'Глеб Ворон' }).count()) === 1, tag('Ворон не появился в досье после встречи'));
   await closePanel();
 
+  // «Назад»: возвращает прошлые реплики; через принятое решение — нельзя (по умолчанию)
+  const txt = () => page.locator('.dlg .text').textContent();
+  const settle = async () => { await page.evaluate(() => { const d = window.__game.dialogue; if (d.typing) d.advance(); }); await page.waitForTimeout(250); };
+  await page.evaluate(() => window.__game.jump('ch1'));
+  await page.waitForTimeout(5500);
+  await settle();
+  const seq = [await txt()];
+  for (let i = 0; i < 2; i++) { await page.evaluate(() => window.__game.dialogue.advance()); await page.waitForTimeout(400); await settle(); seq.push(await txt()); }
+  const logLen = await page.evaluate(() => window.__game.log.length);
+  await press('.dlg .modes [data-m=back]');
+  await page.waitForTimeout(700);
+  ok((await txt()) === seq[1], tag(`«Назад» не вернул прошлую реплику: «${(await txt()).slice(0, 40)}» вместо «${seq[1].slice(0, 40)}»`));
+  ok(await page.evaluate(() => window.__game.log.length) === logLen - 1, tag('после «Назад» в логе остались лишние реплики'));
+  await page.keyboard.press('Backspace');
+  await page.waitForTimeout(700);
+  ok((await txt()) === seq[0], tag('Backspace не вернул реплику на шаг назад'));
+  // дойти до выбора и выбрать
+  for (let i = 0; i < 40 && !(await page.locator('.choices .choice').count()); i++) { await page.evaluate(() => window.__game.dialogue.advance()); await page.waitForTimeout(200); }
+  ok(await page.locator('.choices .choice').count() > 0, tag('не дошли до выбора в главе 1'));
+  await press(page.locator('.choices .choice').first());
+  await page.waitForTimeout(900);
+  await settle();
+  const afterChoice = await txt();
+  await press('.dlg .modes [data-m=back]');
+  await page.waitForTimeout(600);
+  ok((await txt()) === afterChoice && !(await page.locator('.choices .choice').count()), tag('«Назад» отменил принятое решение, хотя это выключено'));
+  ok(await page.locator('.toast', { hasText: 'Решение уже принято' }).count() > 0, tag('нет подсказки, что решение не отменить'));
+  await page.screenshot({ path: `${OUT}/${vp.name}-rollback.png` });
+
+  // пролог: виден запас времени на осмотр после звонка
+  await page.evaluate(() => window.__game.jump('prologue.call_end', { called: true, leave_soon: 3, inv_limit: 3, apt_seen: 4 }));
+  for (let i = 0; i < 20 && !(await page.locator('.inv-banner').count()); i++) { await page.evaluate(() => window.__game.dialogue.advance()); await page.waitForTimeout(250); }
+  await page.waitForTimeout(400);
+  ok(/ещё 3 места/.test(await page.locator('.inv-banner').textContent().catch(() => '')), tag('в осмотре пролога не виден запас времени'));
+  await page.screenshot({ path: `${OUT}/${vp.name}-prologue-limit.png` });
+
+  // документ, закрытый сразу после открытия, не должен «съедать» клавиши (Esc, пробел, «Назад» на Android)
+  await page.evaluate(() => { void window.__ui.openDoc('photo_sonya'); });
+  await page.waitForTimeout(60);
+  await page.evaluate(() => document.querySelector('.doc-close').click());
+  await page.waitForTimeout(500);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  ok(await page.locator('.pause').isVisible(), tag('после быстрого закрытия документа клавиши перестают работать'));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+
   // в меню: «Главы» открыты, контрольная точка главы 1 есть
   await page.evaluate(() => window.__game.toTitle());
   await page.waitForTimeout(1500);
