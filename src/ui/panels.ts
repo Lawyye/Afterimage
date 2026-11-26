@@ -9,6 +9,7 @@ import { ENDINGS } from '../data/endings';
 import { DEDUCTIONS } from '../data/board';
 import { Meta, Saves, SLOTS, CHAPTER_SLOTS } from '../engine/meta';
 import { GALLERY_BG, GALLERY_CHARS } from '../data/gallery';
+import { GLOSSARY } from '../data/glossary';
 import { icon } from './icons';
 import { api, overlayRoot } from './api';
 import { openDoc } from './docs';
@@ -90,7 +91,7 @@ const unknownCard = () => {
 
 export function openJournal(tab?: string) {
   const g = api.g;
-  return panel('Журнал', [['ev', 'Улики'], ['ded', 'Выводы'], ['people', 'Люди']], (t, body) => {
+  return panel('Журнал', [['ev', 'Улики'], ['ded', 'Выводы'], ['people', 'Люди'], ['terms', 'Термины']], (t, body) => {
     const v = g.vars();
     if (t === 'ev') {
       const found = g.found();
@@ -114,6 +115,17 @@ export function openJournal(tab?: string) {
         list.appendChild(row);
       }
       body.appendChild(list);
+    } else if (t === 'terms') {
+      const list = el('div', 'settings');
+      let hidden = 0;
+      for (const g of GLOSSARY) {
+        if (!g.seen(v)) { hidden++; continue; }
+        const row = el('div', 'person');
+        row.innerHTML = `<div><h4>${escapeHtml(g.term)}</h4><p>${escapeHtml(g.text)}</p></div>`;
+        list.appendChild(row);
+      }
+      body.appendChild(list);
+      if (hidden) body.appendChild(el('div', 'pct', `Ещё терминов: ${hidden}. Они откроются по ходу расследования.`));
     } else {
       const grid = el('div', 'people');
       for (const p of PEOPLE) {
@@ -342,6 +354,7 @@ export function openSettings() {
       range('Скорость текста', '0 — мгновенно', 'textSpeed', 0, 120, 5, (v) => (v === 0 ? 'МГН.' : `${v} зн/с`));
       range('Пауза авточтения', 'Секунд после реплики', 'autoDelay', 0.5, 5, 0.1, (v) => `${v.toFixed(1)} с`);
       toggle('Таймер на выборах', 'Решения, которые нужно принять быстро', 'timers');
+      range('Размер текста', 'Крупнее — легче читать на телефоне', 'textSize', 0.85, 1.3, 0.05, pct);
       range('Окно текста', 'Непрозрачность фона под репликами', 'boxAlpha', 0.3, 1, 0.05, pct);
       toggle('«Назад» через решения', 'Разрешить отматывать уже принятые решения', 'rollbackChoices');
     } else {

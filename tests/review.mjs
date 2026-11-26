@@ -114,6 +114,26 @@ await page.evaluate(async () => { const g = window.__game; await g.preTags(['pos
 ok(await page.evaluate(() => window.__game.stage.snapshot().portraits.every((p) => p.id !== 'voron_tf' || !p.pose)), 'несуществующая поза не должна применяться');
 await page.evaluate(() => window.__game.stage.hide('all'));
 
+// 10. касание по боковому полю вытянутого экрана листает текст (800×360 — поля по ~80 точек)
+await page.evaluate(() => window.__game.jump('ch1'));
+await page.waitForTimeout(6000);
+await page.evaluate(() => { const d = window.__game.dialogue; if (d.typing) d.advance(); });
+await page.waitForTimeout(300);
+const t0 = await page.locator('.dlg .text').textContent();
+await page.touchscreen.tap(30, 150);
+await page.waitForTimeout(600);
+ok((await page.locator('.dlg .text').textContent()) !== t0, 'касание по боковому полю не листает текст');
+
+// 11. справочник терминов: открыт базовый набор, закрытые термины не показаны
+await page.evaluate(() => window.__game.hudAction('journal'));
+await page.waitForTimeout(400);
+await page.locator('.panel .tabs button', { hasText: 'Термины' }).tap();
+await page.waitForTimeout(300);
+const terms = await page.locator('.panel .person h4').allTextContents();
+ok(terms.includes('Послеобраз') && !terms.includes('Ретушь'), 'справочник терминов: ' + terms.join(', '));
+await page.locator('.panel .close').tap();
+await page.waitForTimeout(300);
+
 // 7. уведомлений одновременно не больше трёх
 await page.evaluate(() => { for (let i = 0; i < 6; i++) window.__game.toast('ev', 'Тест', 'уведомление ' + i); });
 ok(await page.locator('.toasts .toast').count() <= 3, 'уведомлений больше трёх');

@@ -15,6 +15,7 @@ export interface Settings {
   vibrate: boolean; // вибрация в ключевые моменты (телефоны)
   boxAlpha: number; // непрозрачность окна текста 0.3..1
   rollbackChoices: boolean; // «Назад» может отматывать принятые решения
+  textSize: number; // множитель размера текста реплик 0.85..1.3
 }
 
 const defaults: Settings = {
@@ -32,6 +33,7 @@ const defaults: Settings = {
   vibrate: true,
   boxAlpha: 1,
   rollbackChoices: false,
+  textSize: 1,
 };
 
 type Listener = (s: Settings) => void;

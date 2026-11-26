@@ -199,10 +199,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .dlg .name b { font: 700 27px var(--f-title); letter-spacing: .14em; text-transform: uppercase; color: var(--c, var(--cream)); }
 .dlg .name i { font: 400 14px var(--f-mono); font-style: normal; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; }
 .dlg .name::before { content: ''; align-self: stretch; width: 4px; background: var(--c, var(--cream)); margin-right: 2px; }
-.dlg .text { font: 400 33px/1.52 var(--f-text); color: var(--text); min-height: 150px; text-wrap: pretty; }
-.dlg .text.narr { color: #c9cec8; font-weight: 300; }
-.dlg .text.thought { font-style: italic; color: #b7c3c8; font-weight: 300; }
-.dlg .text.sys { font: 400 29px/1.55 var(--f-mono); color: var(--phos); }
+.dlg .text { font: 400 calc(33px * var(--ts, 1))/1.52 var(--f-text); color: var(--text); min-height: 150px; text-wrap: pretty; }
+.dlg .text.narr { color: #d6dad4; font-weight: 400; }
+.dlg .text.thought { font-style: italic; color: #c4d0d5; font-weight: 400; }
+.dlg .text.sys { font: 400 calc(29px * var(--ts, 1))/1.55 var(--f-mono); color: var(--phos); }
 .dlg .text.orpheus { color: #cfeee0; }
 .dlg .text .em { color: var(--cream); font-weight: 500; }
 .dlg .text .red { color: var(--red); font-weight: 500; }
@@ -603,8 +603,8 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
 .compact .dlg .name b { font-size: 24px; }
 .compact .dlg .name i { display: none; }
 .compact .dlg .inner { left: 50px; right: 50px; top: 72px; }
-.compact .dlg .text { font-size: 30px; line-height: 1.42; min-height: 0; }
-.compact .dlg .text.sys { font-size: 26px; }
+.compact .dlg .text { font-size: calc(30px * var(--ts, 1)); line-height: 1.42; min-height: 0; }
+.compact .dlg .text.sys { font-size: calc(26px * var(--ts, 1)); }
 .compact .dlg .next { right: 46px; bottom: 18px; }
 .compact .dlg .modes { right: 40px; top: 18px; }
 .compact .dlg .modes button { font-size: 15px; padding: 8px 12px; }

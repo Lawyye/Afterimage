@@ -168,7 +168,7 @@ export class Stage {
   readonly lowfx = LOWFX;
   constructor() {
     this.stage.classList.toggle('lowfx', this.lowfx);
-    onSettings((s) => this.stage.style.setProperty('--box-a', String(s.boxAlpha)));
+    onSettings((s) => { this.stage.style.setProperty('--box-a', String(s.boxAlpha)); this.stage.style.setProperty('--ts', String(s.textSize ?? 1)); });
     this.fit();
     // браузер может прокрутить контейнер при фокусе на кнопке/ползунке — возвращаем на место
     for (const id of ['viewport', 'stage', 'ui', 'overlay']) {
