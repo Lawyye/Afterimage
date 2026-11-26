@@ -18,6 +18,7 @@ import { openBoard } from '../ui/board';
 import { openJournal, openLog, openChronicle, panelOpen, closePanel } from '../ui/panels';
 import { showTitle, closeTitle, togglePause, pauseOpen, closePause, chapterCard, endingCard, intro } from '../ui/menus';
 import { icon } from '../ui/icons';
+import { toggleFullscreen } from '../ui/fullscreen';
 
 const LINE_RE = /^([a-z]+)(_)?(?:\/([a-z]+))?:\s*([\s\S]*)$/;
 
@@ -134,19 +135,21 @@ export class Game implements GameApi {
   // -------------------------------------------------------------- HUD & input
   private buildHud() {
     this.hud.innerHTML = `<div class="clock"><span class="t">--:--</span><small></small></div><div class="chap"></div><div class="goal"></div>
-      <div class="btns"><button data-b="journal">ЖУРНАЛ <kbd>J</kbd></button><button data-b="board">ДОСКА <kbd>B</kbd></button><button data-b="log">ЛОГ <kbd>L</kbd></button><button data-b="menu">МЕНЮ <kbd>ESC</kbd></button></div>`;
+      <div class="btns"><button data-b="journal">ЖУРНАЛ <kbd>J</kbd></button><button data-b="board">ДОСКА <kbd>B</kbd></button><button data-b="log">ЛОГ <kbd>L</kbd></button><button data-b="menu">МЕНЮ <kbd>ESC</kbd></button><button data-b="fs" title="Полный экран (F)">⛶</button></div>`;
     this.hud.querySelector('.btns')!.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest('button')?.dataset.b;
       if (b) this.hudAction(b);
     });
   }
   private hudAction(b: string) {
+    if (b === 'fs') { void toggleFullscreen().then((err) => err && this.toast('bad', 'Полный экран', err)); return; }
     if (!this.inGame || this.busy) return;
     audio.sfx('click');
     if (b === 'journal') { this.hud.querySelector('[data-b=journal]')?.classList.remove('new'); openJournal(); }
     if (b === 'board') openBoard(false);
     if (b === 'log') openLog();
     if (b === 'menu') togglePause();
+    if (b === 'fs') void toggleFullscreen().then((err) => err && this.toast('bad', 'Полный экран', err));
   }
   private updateHud() {
     (this.hud.querySelector('.clock .t') as HTMLElement).textContent = this.clock || '--:--';
@@ -187,6 +190,7 @@ export class Game implements GameApi {
       else if (k === 'a' || k === 'ф') this.dialogue.setAuto(!this.dialogue.auto);
       else if (k === 's' || k === 'ы') this.dialogue.setSkip(!this.dialogue.skip);
       else if (e.key === 'Control') this.dialogue.setSkip(true);
+      else if (k === 'f' || k === 'а') this.hudAction('fs');
     });
     window.addEventListener('keyup', (e) => { if (e.key === 'Control' && this.inGame) this.dialogue.setSkip(false); });
     window.addEventListener('wheel', (e) => { if (this.inGame && e.deltaY < 0 && !panelOpen() && !this.busy && !pauseOpen()) openLog(); }, { passive: true });

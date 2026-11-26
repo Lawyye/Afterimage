@@ -13,6 +13,7 @@ import { api, overlayRoot } from './api';
 import { openDoc } from './docs';
 import { portraitUrl } from '../engine/stage';
 import { plainText } from '../engine/dialogue';
+import { toggleFullscreen, isFullscreen, fullscreenSupported } from './fullscreen';
 
 let current: { close: () => void } | null = null;
 export const panelOpen = () => !!current;
@@ -266,12 +267,11 @@ export function openSettings() {
       toggle('Вспышки и глитчи', 'Отключите при светочувствительности', 'glitch');
       toggle('Тряска камеры', '', 'shake');
       const row = el('div', 'set-row');
-      row.innerHTML = `<label>Полный экран<small>F11 или кнопка</small></label><div class="toggle"><button>ПЕРЕКЛЮЧИТЬ</button></div><output></output>`;
-      row.querySelector('button')!.addEventListener('click', () => {
-        try {
-          if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
-          else document.documentElement.requestFullscreen().catch(() => undefined);
-        } catch { /* */ }
+      row.innerHTML = `<label>Полный экран<small>${fullscreenSupported() ? 'Кнопка или F11' : 'Не поддерживается этим браузером'}</small></label><div class="toggle"><button type="button" class="fs-btn">${isFullscreen() ? 'ВЫЙТИ' : 'ВКЛЮЧИТЬ'}</button></div><output></output>`;
+      row.querySelector('.fs-btn')!.addEventListener('click', async () => {
+        const err = await toggleFullscreen();
+        if (err) api.g.toast('bad', 'Полный экран', err);
+        setTimeout(() => { const b = row.querySelector('.fs-btn'); if (b) b.textContent = isFullscreen() ? 'ВЫЙТИ' : 'ВКЛЮЧИТЬ'; }, 300);
       });
       box.appendChild(row);
       const reset = el('button', 'btn-line', 'СБРОСИТЬ НАСТРОЙКИ');

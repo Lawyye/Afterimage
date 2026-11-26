@@ -182,8 +182,9 @@ export class Investigation {
   }
   private showLabel(t: string, sub: string | undefined, x: number, y: number) {
     this.label.innerHTML = `${escapeHtml(t)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}`;
-    this.label.style.left = `${x}px`;
-    this.label.style.top = `${y}px`;
+    const z = this.stage.uiZoom;
+    this.label.style.left = `${x / z}px`;
+    this.label.style.top = `${y / z}px`;
     this.label.classList.add('on');
   }
 }

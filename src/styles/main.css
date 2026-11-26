@@ -572,3 +572,110 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
   background: radial-gradient(closest-side, #ffffff 0%, #e9fdff 45%, rgba(150,240,255,.55) 70%, rgba(150,240,255,0) 100%); transition: opacity .25s; }
 .pt.glitch-eyes .pt-eye { opacity: 1; animation: eyeflick 1.4s steps(1) infinite; }
 @keyframes eyeflick { 0%,100% { opacity: 1; } 40% { opacity: .85; } 41% { opacity: 1; } 77% { opacity: .6; } 78% { opacity: 1; } }
+
+/* ---------- слои: титульный экран ниже панелей ---------- */
+.title-screen { z-index: 25; }
+
+/* ---------- компактный режим (телефоны, маленькие окна) ----------
+   Сцена 1920×1080 масштабируется целиком, а слои интерфейса дополнительно
+   увеличиваются в --mz раз, чтобы текст и кнопки оставались удобного размера. */
+#stage.compact #ui, #stage.compact #overlay, #stage.compact .title-screen, #stage.compact .boot {
+  inset: auto; left: 0; top: 0; width: calc(1920px / var(--mz)); height: calc(1080px / var(--mz));
+  transform: scale(var(--mz)); transform-origin: 0 0;
+}
+.compact .dlg { height: 250px; }
+.compact .dlg .rule { left: 40px; right: 40px; top: 58px; }
+.compact .dlg .name { left: 50px; top: 18px; }
+.compact .dlg .name b { font-size: 24px; }
+.compact .dlg .name i { display: none; }
+.compact .dlg .inner { left: 50px; right: 50px; top: 72px; }
+.compact .dlg .text { font-size: 30px; line-height: 1.42; min-height: 0; }
+.compact .dlg .text.sys { font-size: 26px; }
+.compact .dlg .next { right: 46px; bottom: 18px; }
+.compact .dlg .modes { right: 40px; top: 18px; }
+.compact .dlg .modes button { font-size: 15px; padding: 8px 12px; }
+.compact .choices { bottom: 262px; width: min(980px, 92%); gap: 10px; }
+.compact .choice { font-size: 25px; min-height: 64px; padding: 10px 24px 10px 16px; }
+.compact .hud .clock { left: 24px; top: 14px; font-size: 32px; }
+.compact .hud .clock small { font-size: 12px; }
+.compact .hud .chap { left: 140px; top: 18px; font-size: 12px; }
+.compact .hud .chap b { font-size: 15px; }
+.compact .hud .goal { display: none; }
+.compact .hud .btns { right: 16px; top: 12px; gap: 6px; }
+.compact .hud .btns button { height: 54px; padding: 0 14px; font-size: 15px; }
+.compact .hud .btns kbd { display: none; }
+.compact .toasts { left: 24px; top: 92px; }
+.compact .toast { min-width: 300px; }
+.compact .orpheus { right: 30px; top: 110px; width: 180px; height: 180px; }
+.compact .inv-banner { top: 14px; }
+.compact .inv-exit { right: 20px; bottom: 20px; padding: 16px 24px; }
+.compact .inv-list { left: 20px; bottom: 20px; }
+.compact .hs .pulse { r: 22px; }
+.compact .hs .ring { r: 30px; }
+.compact .panel { inset: 12px; }
+.compact .panel header { padding: 12px 18px; gap: 12px; flex-wrap: wrap; }
+.compact .panel header h2 { font-size: 22px; }
+.compact .panel header .tabs { margin-left: 0; }
+.compact .panel header .tabs button { padding: 10px 14px; font-size: 15px; }
+.compact .panel header .close { padding: 12px 16px; }
+.compact .panel .body { padding: 16px 18px; -webkit-overflow-scrolling: touch; }
+.compact .set-row { grid-template-columns: 1fr 1.3fr 76px; gap: 16px; }
+.compact .set-row label { font-size: 18px; }
+.compact input[type=range] { height: 48px; }
+.compact input[type=range]::-webkit-slider-thumb { width: 30px; height: 30px; margin-top: -13.5px; }
+.compact .toggle button { padding: 12px 18px; }
+.compact .ev-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.compact .people { grid-template-columns: 1fr; }
+.compact .chron .chaps { width: 200px; }
+.compact .chron .row .lbl { width: 160px; }
+.compact .chron .opt { min-width: 120px; font-size: 16px; padding: 10px 12px; }
+.compact .endings { grid-template-columns: repeat(2, 1fr); }
+.compact .board { grid-template-columns: 1fr 360px; }
+.compact .board .wall { overflow: auto; -webkit-overflow-scrolling: touch; }
+.compact .board .wall svg.threads { width: 1450px; height: 1080px; }
+.compact .board .side { padding: 18px; }
+.compact .cctv { width: 96%; padding: 14px; }
+.compact .cctv .screen { width: 100%; height: auto; aspect-ratio: 1440 / 650; }
+.compact .cctv .ctl { flex-wrap: wrap; }
+.compact .doc.paper, .compact .doc.file, .compact .doc.terminal, .compact .doc.msg { width: 92%; max-height: 440px; padding: 30px 36px; font-size: 22px; }
+.compact .doc.paper .hand { font-size: 32px; }
+.compact .doc.terminal { font-size: 18px; }
+.compact .polaroid img { width: 280px; height: 360px; }
+.compact .strip img { width: 220px; height: 290px; }
+.compact .doc-close { right: 20px; bottom: 20px; }
+.compact .pause { grid-template-columns: 380px 1fr; }
+.compact .pause .left { padding: 40px 0 0 40px; }
+.compact .pause .left h2 { margin-bottom: 16px; }
+.compact .menu-btn { width: 330px; padding: 10px 0; font-size: 24px; }
+.compact .title-screen .logo { left: 50px; top: 40px; }
+.compact .title-screen .logo h1 { font-size: 84px; }
+.compact .title-screen .logo .en { font-size: 16px; letter-spacing: .8em; }
+.compact .title-screen .logo .tag { display: none; }
+.compact .title-screen nav { left: 50px; top: 210px; gap: 0; }
+.compact .title-screen .warn { display: none; }
+.compact .title-screen .foot { left: 50px; right: 50px; bottom: 18px; }
+.compact .chapter-card .ttl { font-size: 64px; }
+.compact .ending-card h2 { font-size: 64px; margin: 16px 0; }
+.compact .ending-card p { font-size: 20px; padding: 0 40px; }
+.compact .ending-card .stats { margin-top: 20px; }
+.compact .ending-card .cont { margin-top: 24px; }
+.compact .intro .txt { bottom: 70px; font-size: 26px; padding: 0 60px; }
+.compact .intro .big { font-size: 72px; }
+.compact .confirm { width: 90%; padding: 30px; }
+.compact .boot h1 { font-size: 46px; }
+.compact .boot p { font-size: 16px; padding: 0 30px; }
+.btn-line, .menu-btn, .choice, .hud .btns button, .toggle button, .slot, .q, .bcard { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* ---------- экран «поверните телефон» ---------- */
+#rotate-hint { display: none; }
+@media (orientation: portrait) and (max-width: 900px) {
+  #rotate-hint { display: flex; position: fixed; inset: 0; z-index: 100; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+    padding: 24px max(16px, env(safe-area-inset-left, 0px)); background: rgba(3,4,5,.96); color: var(--cream); text-align: center; font: 400 16px/1.5 var(--f-text); }
+  #rotate-hint .ph { width: 52px; height: 88px; border: 2px solid var(--cream); border-radius: 9px; animation: rotph 2.4s ease-in-out infinite; }
+  #rotate-hint b { font: 700 18px var(--f-title); letter-spacing: .1em; }
+  #rotate-hint button { padding: 14px 22px; font: 600 15px var(--f-title); letter-spacing: .12em; color: #000; background: var(--cream); }
+}
+@keyframes rotph { 0%,30% { transform: rotate(0); } 60%,100% { transform: rotate(-90deg); } }
+
+/* сцена не должна прокручиваться браузером при фокусе на элементах */
+#viewport, #stage, #ui, #overlay, .title-screen { overflow: hidden; overflow: clip; }

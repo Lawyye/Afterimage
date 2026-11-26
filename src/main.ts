@@ -18,7 +18,13 @@ function preload(urls: string[], onProgress: (k: number) => void): Promise<void>
   }))).then(() => undefined);
 }
 
+import { toggleFullscreen } from './ui/fullscreen';
+
 async function main() {
+  document.getElementById('fs-rotate')?.addEventListener('click', async () => {
+    const err = await toggleFullscreen();
+    if (err) alertBox(err);
+  });
   const game = new Game(storyJson);
   (window as unknown as { __game: Game }).__game = game;
   (window as unknown as { __ui: unknown }).__ui = { openCCTV, openBoard, openDoc };
@@ -32,3 +38,11 @@ async function main() {
   game.title();
 }
 void main();
+
+function alertBox(text: string) {
+  const hint = document.getElementById('rotate-hint');
+  if (!hint) return;
+  let m = hint.querySelector('.msg') as HTMLElement | null;
+  if (!m) { m = document.createElement('div'); m.className = 'msg'; hint.appendChild(m); }
+  m.textContent = text;
+}

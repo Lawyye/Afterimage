@@ -4,6 +4,7 @@ import { Weather, Noise, Glitch } from './fx';
 import { settings } from './settings';
 import manifest from '../../assets/portraits/manifest.json';
 import { BG_FX, BgFx } from '../data/bgfx';
+import { asset } from './assets';
 
 export type Side = 'left' | 'right' | 'center';
 type Box = [number, number, number, number]; // left, top, width, height в процентах кадра
@@ -34,15 +35,15 @@ export function resolveExpr(id: string, expr: string): string {
   return Object.keys(m.exprs)[0];
 }
 export const hasPortrait = (id: string) => !!MAN[id];
-export const portraitUrl = (id: string, expr: string, v = '') => `assets/portraits/${id}_${resolveExpr(id, expr)}${v ? '_' + v : ''}.webp`;
-export const bgUrl = (id: string) => `assets/bg/${id}.webp`;
+export const portraitUrl = (id: string, expr: string, v = '') => asset(`assets/portraits/${id}_${resolveExpr(id, expr)}${v ? '_' + v : ''}.webp`);
+export const bgUrl = (id: string) => asset(`assets/bg/${id}.webp`);
 export function allAssetUrls(): string[] {
   const urls: string[] = [];
   for (const [id, m] of Object.entries(MAN)) {
     for (const [e, f] of Object.entries(m.exprs)) {
-      urls.push(`assets/portraits/${id}_${e}.webp`);
-      if (f.talk) urls.push(`assets/portraits/${id}_${e}_talk.webp`);
-      if (f.blink) urls.push(`assets/portraits/${id}_${e}_blink.webp`);
+      urls.push(asset(`assets/portraits/${id}_${e}.webp`));
+      if (f.talk) urls.push(asset(`assets/portraits/${id}_${e}_talk.webp`));
+      if (f.blink) urls.push(asset(`assets/portraits/${id}_${e}_blink.webp`));
     }
   }
   return urls;
@@ -95,11 +96,29 @@ export class Stage {
 
   constructor() {
     this.fit();
-    window.addEventListener('resize', () => this.fit());
+    // браузер может прокрутить контейнер при фокусе на кнопке/ползунке — возвращаем на место
+    for (const id of ['viewport', 'stage', 'ui', 'overlay']) {
+      const el = document.getElementById(id)!;
+      el.addEventListener('scroll', () => { el.scrollLeft = 0; el.scrollTop = 0; });
+    }
+    const refit = () => requestAnimationFrame(() => this.fit());
+    window.addEventListener('resize', refit);
+    window.addEventListener('orientationchange', refit);
+    document.addEventListener('fullscreenchange', refit);
+    window.visualViewport?.addEventListener('resize', refit);
   }
   fit() {
-    const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    const vw = window.visualViewport?.width ?? window.innerWidth;
+    const vh = window.visualViewport?.height ?? window.innerHeight;
+    const s = Math.min(vw / 1920, vh / 1080);
     this.stage.style.setProperty('--s', String(s));
+    // на маленьких экранах интерфейс увеличивается отдельно от сцены
+    const mz = Math.max(1, Math.min(1.9, 0.62 / s));
+    this.stage.style.setProperty('--mz', String(mz));
+    this.stage.classList.toggle('compact', mz > 1.05);
+  }
+  get uiZoom() {
+    return parseFloat(this.stage.style.getPropertyValue('--mz') || '1') || 1;
   }
 
   // ----------------------------------------------------------- background

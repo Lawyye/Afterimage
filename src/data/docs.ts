@@ -1,7 +1,8 @@
 // Документы, которые открываются поверх сцены.
 export interface DocDef { id: string; kind: 'paper' | 'terminal' | 'photo' | 'file'; title: string; html: string; }
 
-const p = (id: string) => `assets/portraits/${id}.webp`;
+import { asset } from '../engine/assets';
+const p = (id: string) => asset(`assets/portraits/${id}.webp`);
 
 export const DOCS: Record<string, DocDef> = {
   note: { id: 'note', kind: 'paper', title: 'Записка за зеркалом', html: `
