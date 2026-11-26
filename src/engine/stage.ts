@@ -3,6 +3,7 @@ import { el, sleep, Token, haptic, LOWFX } from './util';
 import { Weather, Noise, Glitch } from './fx';
 import { settings, onSettings } from './settings';
 import manifest from '../../assets/portraits/manifest.json';
+import bodiesJson from '../../assets/bodies/bodies.json';
 import { BG_FX, BgFx } from '../data/bgfx';
 import { asset } from './assets';
 
@@ -14,6 +15,24 @@ type ExprMap = Record<string, { talk?: Box; blink?: Box }>;
 interface PortraitEntry { exprs: ExprMap; full?: boolean; poses?: Record<string, { exprs: ExprMap }> }
 type Manifest = Record<string, PortraitEntry>;
 const MAN = manifest as unknown as Manifest;
+/** Тела персонажей (tools/art/bodies.py): размер кадра, рост относительно других, рамка головы в процентах кадра */
+interface BodyDef { w: number; h: number; hf: number; bust: Box; poses?: string[] }
+const BODIES = bodiesJson as unknown as Record<string, BodyDef>;
+export const hasBody = (id: string) => !!BODIES[id];
+export const bodyUrl = (id: string, pose = '') => asset(`assets/bodies/${id}${pose ? '@' + pose : ''}.webp`);
+/** Жесты-позы по эмоции: в гневе и холоде скрещивают руки (если такая поза нарисована) */
+const BODY_POSE: Record<string, Record<string, string>> = {
+  voron: { cold: 'crossed', angry: 'crossed', cornered: 'crossed' },
+  eva: { angry: 'crossed' },
+};
+const bodyPoseFor = (id: string, expr: string) => {
+  const pose = BODY_POSE[id]?.[expr];
+  return pose && BODIES[id]?.poses?.includes(pose) ? pose : '';
+};
+/** Раскладка «персонаж стоит в сцене»: ноги за нижним краем, голова ~20 % высоты экрана, фон вокруг виден */
+const BODY_SCALE = 0.8;      // точек сцены на точку кадра тела (для роста 1.0)
+const BODY_GROUND = 1300;    // где ступни (ниже края экрана 1080)
+const SLOT_X: Record<Side, number> = { left: 440, center: 960, right: 1480 };
 /** Добавить или заменить описание персонажа во время работы (тесты, моды) */
 export function definePortrait(id: string, entry: PortraitEntry) { MAN[id] = entry; }
 const exprsOf = (id: string, pose = ''): ExprMap => (pose && MAN[id]?.poses?.[pose]?.exprs) || MAN[id]?.exprs || {};
@@ -87,11 +106,13 @@ export function allAssetUrls(): string[] {
       const pre = `assets/portraits/${id}${pose ? '@' + pose : ''}`;
       for (const [e, f] of Object.entries(exprsOf(id, pose))) {
         urls.push(asset(`${pre}_${e}.webp`));
+        if (!pose && BODIES[id]) urls.push(asset(`${pre}_${e}_head.webp`));
         if (f.talk) urls.push(asset(`${pre}_${e}_talk.webp`));
         if (f.blink) urls.push(asset(`${pre}_${e}_blink.webp`));
       }
     }
   }
+  for (const [id, b] of Object.entries(BODIES)) for (const pose of ['', ...(b.poses ?? [])]) urls.push(bodyUrl(id, pose));
   return urls;
 }
 
@@ -110,6 +131,8 @@ interface Portrait {
   blinkTimer: number;
   flapTimer: number; // свой таймер речи у каждого портрета
   pose: string; // '' — основная поза
+  bodies?: HTMLImageElement[]; // два слоя тела для смены позы растворением
+  bodyPose?: string;
 }
 
 export interface StageSnapshot {
@@ -265,18 +288,37 @@ export class Stage {
         p.root.classList.remove(`side-${p.side}`);
         p.root.classList.add(`side-${s}`);
         p.side = s;
+        if (BODIES[id]) this.placeBody(p.root, BODIES[id], s);
       }
       this.setExpr(id, expr);
       return;
     }
-    const root = el('div', `pt side-${s}` + (isFullBody(id) ? ' pt-full' : ''));
+    const body = BODIES[id];
+    const root = el('div', `pt side-${s}` + (isFullBody(id) ? ' pt-full' : '') + (body ? ' pt-body' : ''));
     root.dataset.id = id;
     const inner = el('div', 'pt-inner');
+    // персонаж с телом: тело — нижний слой, голова (все эмоции, рот, глаза) — отдельный слой поверх
+    let head: HTMLElement = inner;
+    if (body) {
+      this.placeBody(root, body, s);
+      for (let i = 0; i < 2; i++) {
+        const bimg = el('img', 'pt-bodyimg') as HTMLImageElement;
+        bimg.alt = '';
+        bimg.decoding = 'async';
+        if (i === 0) bimg.src = bodyUrl(id, bodyPoseFor(id, resolveExpr(id, expr)));
+        else bimg.style.opacity = '0';
+        inner.appendChild(bimg);
+      }
+      head = el('div', 'pt-head');
+      const [bl, bt, bw, bh] = body.bust;
+      Object.assign(head.style, { left: `${bl}%`, top: `${bt}%`, width: `${bw}%`, height: `${bh}%` });
+      inner.appendChild(head);
+    }
     const mk = (cls: string) => {
       const i = el('img', cls) as HTMLImageElement;
       i.alt = '';
       i.decoding = 'async';
-      inner.appendChild(i);
+      head.appendChild(i);
       return i;
     };
     const a = mk('pt-img pt-a'), b = mk('pt-img pt-b'), talk = mk('pt-img pt-talk'), blink = mk('pt-img pt-blink');
@@ -284,16 +326,17 @@ export class Stage {
       const g = el('i', 'pt-eye');
       g.style.left = `${ex}%`;
       g.style.top = `${ey}%`;
-      inner.appendChild(g);
+      head.appendChild(g);
     }
     root.classList.toggle('glitch-eyes', expr === 'glitch');
     root.appendChild(inner);
     this.charLayer.appendChild(root);
     const e = resolveExpr(id, expr);
     this.onSeen?.(`pt:${id}:${e}`);
-    a.src = portraitUrl(id, e);
+    a.src = portraitUrl(id, e, body ? 'head' : '');
     b.style.opacity = '0';
     p = { id, expr: e, side: s, root, a, b, talk, blink, front: a, hasTalk: false, hasBlink: false, blinkTimer: 0, flapTimer: 0, pose: '' };
+    if (body) { p.bodies = [...inner.querySelectorAll<HTMLImageElement>('.pt-bodyimg')]; p.bodyPose = bodyPoseFor(id, e); }
     this.portraits.set(id, p);
     this.updateVariants(p);
     const shown = p;
@@ -330,7 +373,22 @@ export class Stage {
     const e = resolveExpr(id, expr, p.pose);
     if (e === p.expr) return;
     this.swapBase(p, e, p.pose);
+    this.setBodyPose(p, bodyPoseFor(id, e));
     this.nod(p);
+  }
+  /** Смена позы тела растворением; голова остаётся на месте (позы совмещены по шее) */
+  private setBodyPose(p: Portrait, pose: string) {
+    if (!p.bodies || pose === p.bodyPose) return;
+    p.bodyPose = pose;
+    const [b0, b1] = p.bodies;
+    const front = b0.style.opacity === '0' ? b1 : b0;
+    const back = front === b0 ? b1 : b0;
+    back.src = bodyUrl(p.id, pose);
+    whenDecoded(back).then(() => {
+      if (p.bodyPose !== pose || this.portraits.get(p.id) !== p) return;
+      back.style.opacity = '1';
+      front.style.opacity = '0';
+    });
   }
   /** Сменить позу (ростовые персонажи). Если такой позы нет в манифесте — ничего не делаем (остаётся бюст). */
   setPose(id: string, pose: string, quiet = false) {
@@ -341,9 +399,33 @@ export class Stage {
     // жест-акцент: короткое «движение» всей фигуры (только transform — без перерисовки)
     if (!quiet && !this.lowfx) p.root.animate?.([{ scale: '1' }, { scale: '1.015' }, { scale: '1' }], { duration: 250, easing: 'ease-out' });
   }
-  /** Лёгкий кивок при смене эмоции: сдвиг слоя на несколько точек, считает видеокарта */
+  /** Размер и место персонажа с телом: свой рост, ступни на общей «земле», центр — в слоте стороны */
+  private placeBody(root: HTMLElement, b: BodyDef, side: Side) {
+    const k = BODY_SCALE * b.hf;
+    const w = b.w * k, h = b.h * k;
+    Object.assign(root.style, { width: `${w}px`, height: `${h}px`, top: `${BODY_GROUND - h}px`, left: `${SLOT_X[side] - w / 2}px`, right: 'auto', bottom: 'auto' });
+  }
+  /** Жест при смене эмоции (только сдвиги и наклоны слоя — считает видеокарта, картинка не перерисовывается):
+   * гнев — подаётся к собеседнику, испуг — отшатывается, грусть — никнет, смех — подпрыгивает, иначе — кивок */
   private nod(p: Portrait) {
-    p.root.animate?.([{ translate: '0 0' }, { translate: '0 5px' }, { translate: '0 0' }], { duration: 260, easing: 'ease-out' });
+    const el2 = (p.root.querySelector('.pt-inner') as HTMLElement) ?? p.root;
+    const dir = p.side === 'left' ? 1 : p.side === 'right' ? -1 : 0;
+    const e = p.expr;
+    let frames: Keyframe[];
+    let duration = 420;
+    if (/angry|cold|determined|cornered|suspicious/.test(e)) {
+      frames = [{ transform: 'none' }, { transform: `translateX(${dir * 10}px) rotate(${dir * 1.2}deg)` }, { transform: 'none' }]; duration = 650;
+    } else if (/shock|surprised|fear|scared/.test(e)) {
+      frames = [{ transform: 'none' }, { transform: `translate(${-dir * 12}px, -10px)` }, { transform: 'none' }]; duration = 520;
+    } else if (/sad|cry|hurt|plead/.test(e)) {
+      frames = [{ transform: 'none' }, { transform: `translateY(8px) rotate(${-dir * 0.6}deg)` }, { transform: 'none' }]; duration = 900;
+    } else if (/laugh/.test(e)) {
+      frames = [{ transform: 'none' }, { transform: 'translateY(-8px)' }, { transform: 'none' }, { transform: 'translateY(-5px)' }, { transform: 'none' }]; duration = 620;
+    } else {
+      frames = [{ transform: 'none' }, { transform: 'translateY(5px)' }, { transform: 'none' }]; duration = 300;
+    }
+    if (!BODIES[p.id]) { p.root.animate?.([{ translate: '0 0' }, { translate: '0 5px' }, { translate: '0 0' }], { duration: 260, easing: 'ease-out' }); return; }
+    el2.animate?.(frames, { duration, easing: 'cubic-bezier(.3,.6,.3,1)', composite: 'add' });
   }
   /** Перекрёстное растворение основы (эмоция/поза) после декодирования новой картинки;
    * устаревшая смена пропускается; накладки рта/глаз меняются вместе с лицом, а не раньше */
@@ -353,7 +435,7 @@ export class Stage {
     p.pose = pose;
     if (!pose) this.onSeen?.(`pt:${id}:${e}`);
     const back = p.front === p.a ? p.b : p.a;
-    back.src = portraitUrl(id, e, '', pose);
+    back.src = portraitUrl(id, e, hasBody(id) ? 'head' : '', pose);
     p.hasTalk = p.hasBlink = false;
     p.talk.style.opacity = '0';
     p.blink.style.opacity = '0';
@@ -408,7 +490,8 @@ export class Stage {
   /** Анимация рта во время печати текста */
   mouth(on: boolean) {
     const p = this.speaking ? this.portraits.get(this.speaking) : undefined;
-    for (const q of this.portraits.values()) { clearInterval(q.flapTimer); q.talk.style.opacity = '0'; }
+    for (const q of this.portraits.values()) { clearInterval(q.flapTimer); q.talk.style.opacity = '0'; q.root.classList.remove('talking'); }
+    if (on && p) p.root.classList.add('talking');
     if (!on || !p || !p.hasTalk) return;
     // рот не «щёлкает» открыт/закрыт, а ходит между тремя положениями с разной амплитудой
     const LEVELS = [0, 0.55, 1, 0.55, 0, 0.8, 0.35, 1, 0.6, 0];

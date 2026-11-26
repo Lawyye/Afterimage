@@ -794,3 +794,22 @@ button:focus:not(:focus-visible) { outline: none; }
 @keyframes ptlife { 0% { transform: none; } 50% { transform: translateY(-3px) scale(1.006) rotate(.25deg); } 100% { transform: translateY(-4px) scale(1.008) rotate(-.2deg); } }
 .lowfx .pt.pt-full .pt-inner { animation: none; }
 .person .ph img.full, .g-tile img.full { object-fit: cover; object-position: 50% 3%; transform: scale(1.8); transform-origin: 50% 4%; }
+
+/* ---------- персонажи с телом: стоят в сцене, голова — отдельный слой ---------- */
+.pt.pt-body { transform-origin: 50% 100%; }
+.pt.pt-body .pt-inner { transform-origin: 50% 100%; animation: bodybreath 5.5s ease-in-out infinite alternate; }
+@keyframes bodybreath { from { transform: none; } to { transform: translateY(-2px) scaleY(1.004); } }
+.pt-bodyimg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pt-head { position: absolute; will-change: transform; transform-origin: 50% 78%; animation: headidle 7s ease-in-out infinite alternate; }
+@keyframes headidle { 0% { transform: none; } 50% { transform: rotate(.7deg) translateY(1px); } 100% { transform: rotate(-.5deg); } }
+.pt-head .pt-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* говорящий: чуть выходит вперёд, голова покачивается в такт речи */
+.pt.pt-body.speaking { transform: translateY(-6px); }
+.pt.pt-body.talking .pt-head { animation: headtalk .42s ease-in-out infinite alternate; }
+@keyframes headtalk { from { transform: rotate(-.6deg); } to { transform: rotate(.5deg) translateY(-2px); } }
+/* на телефоне — без постоянного дыхания и покачивания в покое (экономия видеокарты), речь и жесты остаются */
+.lowfx .pt.pt-body .pt-inner, .lowfx .pt-head { animation: none; }
+.lowfx .pt.pt-body.talking .pt-head { animation: headtalk .42s ease-in-out infinite alternate; }
+.pt-bodyimg { transition: opacity .32s ease; }
+/* неговорящий персонаж в тёмной одежде не должен сливаться с ночным фоном */
+.pt.pt-body.dim { filter: brightness(.74) saturate(.8); opacity: .95; }

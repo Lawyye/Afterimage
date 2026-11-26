@@ -12,7 +12,7 @@ KS=tools/android/afterimage.keystore
 [ -f build-android/index.html ] || npm run build
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/assets/assets"
 cp build-android/index.html "$OUT/assets/index.html"
-for sub in bg portraits; do mkdir -p "$OUT/assets/assets/$sub"; cp assets/$sub/*.webp "$OUT/assets/assets/$sub/"; done
+for sub in bg portraits bodies; do mkdir -p "$OUT/assets/assets/$sub"; cp assets/$sub/*.webp "$OUT/assets/assets/$sub/"; done
 
 aapt package -f -m -J "$OUT/gen" -M android/AndroidManifest.xml -S android/res -I "$SDK_JAR"
 javac -nowarn -Xlint:-options -source 8 -target 8 -encoding UTF-8 -bootclasspath "$SDK_JAR" -classpath "$SDK_JAR" \

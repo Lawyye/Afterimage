@@ -16,7 +16,7 @@ mkdirSync(dist, { recursive: true });
 function assetMap(inline) {
   const map = {};
   if (!inline) return map;
-  for (const sub of ['bg', 'portraits']) {
+  for (const sub of ['bg', 'portraits', 'bodies']) {
     for (const f of readdirSync(join(root, 'assets', sub))) {
       if (!f.endsWith('.webp')) continue;
       map[`assets/${sub}/${f}`] = 'data:image/webp;base64,' + readFileSync(join(root, 'assets', sub, f)).toString('base64');
