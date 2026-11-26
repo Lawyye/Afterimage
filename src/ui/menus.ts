@@ -105,7 +105,7 @@ export async function chapterCard(text: string, token: Token) {
   // диктор читает номер и название главы; заставка держится, пока он не договорит
   const vo = voKey('narrator', chapterVo(n, title ?? ''));
   const voiced = settings.vo > 0 && hasVo(vo);
-  if (voiced) setTimeout(() => { if (!token.cancelled && c.isConnected) void audio.playVo(vo); }, 700);
+  if (voiced) setTimeout(() => { if (!token.cancelled && c.isConnected) void audio.playVo(vo); }, 350);
   // касание или любая клавиша — пропустить заставку главы
   let skip: () => void = () => undefined;
   const skipped = new Promise<void>((r) => (skip = r));
@@ -113,7 +113,7 @@ export async function chapterCard(text: string, token: Token) {
   const view = document.getElementById('viewport')!;
   setTimeout(() => { view.addEventListener('pointerdown', skip); window.addEventListener('keydown', onKey); }, 350);
   try {
-    await Promise.race([sleep(voiced ? Math.max(3600, voDuration(vo) + 1300) : 3600, token), skipped]);
+    await Promise.race([sleep(voiced ? Math.max(3600, voDuration(vo) + 650) : 3600, token), skipped]);
     c.classList.remove('on');
     await Promise.race([sleep(1000, token), skipped.then(() => sleep(250, token))]);
   } finally {

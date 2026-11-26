@@ -135,7 +135,9 @@ for (const vp of [{ name: '1280x720', w: 1280, h: 720, touch: false }, { name: '
   const txt = () => page.locator('.dlg .text').textContent();
   const settle = async () => { await page.evaluate(() => { const d = window.__game.dialogue; if (d.typing) d.advance(); }); await page.waitForTimeout(250); };
   await page.evaluate(() => window.__game.jump('ch1'));
-  await page.waitForTimeout(5500);
+  // заставка главы держится, пока диктор читает название, — ждём первую реплику, а не фиксированное время
+  await page.waitForFunction(() => !document.querySelector('.chapter-card') && window.__game.dialogue.waiting, null, { timeout: 15000 });
+  await page.waitForTimeout(300);
   await settle();
   const seq = [await txt()];
   for (let i = 0; i < 2; i++) { await page.evaluate(() => window.__game.dialogue.advance()); await page.waitForTimeout(400); await settle(); seq.push(await txt()); }

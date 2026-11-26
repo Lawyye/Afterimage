@@ -116,7 +116,8 @@ await page.evaluate(() => window.__game.stage.hide('all'));
 
 // 10. касание по боковому полю вытянутого экрана листает текст (800×360 — поля по ~80 точек)
 await page.evaluate(() => window.__game.jump('ch1'));
-await page.waitForTimeout(6000);
+await page.waitForFunction(() => !document.querySelector('.chapter-card') && window.__game.dialogue.waiting, null, { timeout: 15000 });
+await page.waitForTimeout(500);
 await page.evaluate(() => { const d = window.__game.dialogue; if (d.typing) d.advance(); });
 await page.waitForTimeout(300);
 const t0 = await page.locator('.dlg .text').textContent();
