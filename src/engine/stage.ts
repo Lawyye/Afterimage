@@ -94,7 +94,9 @@ export class Stage {
   private flapTimer = 0;
   private flap = false;
 
+  readonly lowfx = matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4;
   constructor() {
+    this.stage.classList.toggle('lowfx', this.lowfx);
     this.fit();
     // браузер может прокрутить контейнер при фокусе на кнопке/ползунке — возвращаем на место
     for (const id of ['viewport', 'stage', 'ui', 'overlay']) {

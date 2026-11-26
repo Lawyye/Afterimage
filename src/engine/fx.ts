@@ -14,13 +14,18 @@ export class Weather {
   private wind = -0.18;
   private last = 0;
   private lightning = 0;
+  private cleared = true;
   constructor(private canvas: HTMLCanvasElement) {
+    canvas.width = 960;
+    canvas.height = 540;
     this.ctx = canvas.getContext('2d')!;
+    this.ctx.setTransform(0.5, 0, 0, 0.5, 0, 0);
     requestAnimationFrame((t) => this.loop(t));
   }
   set(mode: Weather['mode']) {
     this.mode = mode;
-    this.target = mode === 'heavy' ? 520 : mode === 'light' ? 200 : mode === 'memory' ? 260 : 0;
+    const k = document.getElementById('stage')?.classList.contains('lowfx') ? 0.5 : 1;
+    this.target = Math.round((mode === 'heavy' ? 520 : mode === 'light' ? 200 : mode === 'memory' ? 260 : 0) * k);
   }
   flashLightning() {
     this.lightning = 1;
@@ -36,6 +41,12 @@ export class Weather {
     while (this.drops.length < n) this.drops.push(this.spawn());
     if (this.drops.length > n) this.drops.length = n;
     const c = this.ctx;
+    if (n === 0 && this.lightning <= 0) {
+      if (!this.cleared) { c.clearRect(0, 0, 1920, 1080); this.cleared = true; }
+      requestAnimationFrame((tt) => this.loop(tt));
+      return;
+    }
+    this.cleared = false;
     c.clearRect(0, 0, 1920, 1080);
     if (this.lightning > 0) {
       c.fillStyle = `rgba(200,220,255,${this.lightning * 0.35})`;
@@ -45,7 +56,7 @@ export class Weather {
     if (n > 0) {
       const memory = this.mode === 'memory';
       c.lineCap = 'round';
-      c.lineWidth = memory ? 1.2 : 1.6;
+      c.lineWidth = memory ? 2 : 2.6;
       for (const d of this.drops) {
         d.y += d.v * dt * (memory ? -0.35 : 1); // в памяти дождь идёт вверх
         d.x += d.v * this.wind * dt * (memory ? -0.35 : 1);

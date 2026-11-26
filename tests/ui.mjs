@@ -108,6 +108,40 @@ for (const vp of VIEWPORTS) {
     else await page.mouse.click(vp.viewport.width / 2, vp.viewport.height * 0.35);
     await page.waitForTimeout(700);
   }
+  // осмотр квартиры: настоящие касания/клики по точкам (как палец), без программных событий
+  const realTap = async (x, y) => { if (vp.touch) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y); };
+  for (let i = 0; i < 60 && !(await page.locator('.hs-svg .hs').count()); i++) {
+    await realTap(vp.viewport.width / 2, vp.viewport.height * 0.35);
+    await page.waitForTimeout(450);
+  }
+  ok(await page.locator('.hs-svg .hs').count() > 0, tag('не дошли до осмотра квартиры'));
+  await page.screenshot({ path: `${OUT}/${vp.name}-investigate.png` });
+  for (let k = 0; k < 3; k++) {
+    const dot = await page.evaluate(() => {
+      const hs = [...document.querySelectorAll('.hs-svg .hs:not(.done)')];
+      const c = hs[0]?.querySelector('.pulse');
+      if (!c) return null;
+      const r = c.getBoundingClientRect();
+      const x = r.x + r.width / 2, y = r.y + r.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      return { x, y, hitOk: !!hit && !!hit.closest('.hs') };
+    });
+    if (!ok(dot, tag('нет неосмотренных точек'))) break;
+    ok(dot.hitOk, tag(`точка осмотра перекрыта другим слоем (касание до неё не дойдёт)`));
+    await realTap(dot.x, dot.y);
+    await page.waitForTimeout(500);
+    const reacted = await page.evaluate(() => !document.querySelector('.hs-svg') || !!document.querySelector('.dlg:not(.hidden) .text')?.textContent);
+    ok(reacted, tag(`касание точки осмотра №${k + 1} не сработало`));
+    // дочитать описание до возврата к осмотру
+    for (let i = 0; i < 25 && !(await page.locator('.hs-svg .hs').count()); i++) {
+      if (await page.locator('.doc-close').count()) { await press('.doc-close'); continue; }
+      if (await page.locator('.choices:not(.done) .choice:not(.locked)').count()) { await press('.choices:not(.done) .choice:not(.locked) >> nth=0'); await page.waitForTimeout(600); continue; }
+      await realTap(vp.viewport.width / 2, vp.viewport.height * 0.35);
+      await page.waitForTimeout(400);
+    }
+  }
+  await page.screenshot({ path: `${OUT}/${vp.name}-investigate-after.png` });
+
   // HUD: журнал, доска, лог, меню
   for (const [b, check] of [['journal', '.panel'], ['board', '.board'], ['log', '.panel']]) {
     await press(`.hud [data-b=${b}]`);
@@ -129,6 +163,18 @@ for (const vp of VIEWPORTS) {
   ok(await page.locator('.dlg:not(.hidden), .hs-svg').count() > 0, tag('после загрузки игра не продолжилась'));
   await page.screenshot({ path: `${OUT}/${vp.name}-after-load.png` });
 
+  if (vp.touch) {
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    const lt = await page.evaluate(() => new Promise((res) => {
+      const d = []; const po = new PerformanceObserver((l) => l.getEntries().forEach((e) => d.push(e.duration)));
+      po.observe({ entryTypes: ['longtask'] });
+      setTimeout(() => { po.disconnect(); res({ n: d.length, max: Math.round(Math.max(0, ...d)) }); }, 6000);
+    }));
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    console.log(tag(`длинные задачи за 6 с при CPU x4: ${lt.n}, максимум ${lt.max} мс`));
+    ok(lt.max < 700, tag(`подвисание главного потока ${lt.max} мс — музыка может прерываться`));
+  }
   ok(!errors.length, tag('ошибки в консоли: ' + errors.join(' | ')));
   await ctx.close();
 }

@@ -9,7 +9,7 @@ export const HOTSPOTS: Record<string, Record<string, Hotspot>> = {
     bed: { label: 'Кровать', rect: [430, 470, 760, 320], dot: [760, 600] },
     terminal: { label: 'Терминал', rect: [1615, 440, 140, 150], dot: [1685, 515] },
     pills: { label: 'Флакон', sub: 'Снотворное', rect: [1722, 592, 60, 72], dot: [1750, 625] },
-    photo: { label: 'Фотография', sub: 'На полке', rect: [1765, 0, 125, 185], dot: [1825, 95] },
+    photo: { label: 'Фотография', sub: 'На полке', rect: [1765, 0, 125, 185], dot: [1822, 168] },
     safe: { label: 'Сейф', sub: 'Ящик стола', rect: [1620, 748, 118, 108], dot: [1678, 800] },
   },
   mira_apt: {

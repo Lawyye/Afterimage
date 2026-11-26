@@ -55,7 +55,8 @@ export class AudioEngine {
     }
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return;
-    const ctx = new AC();
+    let ctx: AudioContext;
+    try { ctx = new AC({ latencyHint: 'playback' }); } catch { ctx = new AC(); }
     this.ctx = ctx;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -14;
@@ -86,7 +87,7 @@ export class AudioEngine {
     this.bigReverbIn = ctx.createGain();
     this.bigReverbIn.connect(this.bigReverb).connect(this.master);
     onSettings(() => this.applyVolumes());
-    this.sched = window.setInterval(() => this.tick(), 40);
+    this.sched = window.setInterval(() => this.tick(), 50);
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
       if (document.hidden) void this.ctx.suspend();
@@ -431,8 +432,9 @@ export class AudioEngine {
     if (!this.ctx || !this.track) return;
     const tr = this.track;
     const spb = 60 / tr.t.bpm / (tr.t.steps / 4);
-    while (tr.next < this.now + 0.25) {
-      if (tr.next < this.now - 0.5) tr.next = this.now + 0.05; // после паузы вкладки
+    // планируем на 0.8 с вперёд: короткие подвисания интерфейса не дают рывков музыки
+    while (tr.next < this.now + 0.8) {
+      if (tr.next < this.now - 0.05) tr.next = this.now + 0.08; // опоздали (пауза вкладки) — догоняем без пачки нот
       tr.t.step(this, tr.gain, tr.next, tr.step, tr.bar, this.intensity);
       tr.step++;
       if (tr.step >= tr.t.steps) {

@@ -122,7 +122,9 @@ while (steps < 3000 && !ended) {
       const all = await page.$$('.hs-svg .hs:not(.done)');
       const list = all.length ? all : await page.$$('.hs-svg .hs');
       const el = list[Math.floor(rnd() * list.length)];
-      await el.dispatchEvent('click');
+      // настоящий клик по точке — проверяет, что её ничто не перекрывает
+      const c = await (await el.$('.pulse')).boundingBox();
+      await page.mouse.click(c.x + c.width / 2, c.y + c.height / 2);
     }
     await page.waitForTimeout(250);
     continue;

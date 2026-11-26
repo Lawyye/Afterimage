@@ -679,3 +679,19 @@ input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var
 
 /* сцена не должна прокручиваться браузером при фокусе на элементах */
 #viewport, #stage, #ui, #overlay, .title-screen { overflow: hidden; overflow: clip; }
+
+/* ---------- касания: прозрачные слои не должны перехватывать нажатия ---------- */
+#char-layer, #hotspot-layer, #weather, #memory-tint { pointer-events: none; }
+#ui .dlg.hidden, #ui .hud, #ui .toasts, #ui .inv-banner, #ui .orpheus, #ui .hs-label { pointer-events: none; }
+#ui .hud .btns { pointer-events: auto; }
+.hs-svg .hs, .hs-svg .hs * { pointer-events: all; cursor: pointer; }
+
+/* ---------- облегчённая графика для телефонов (плавность и звук без рывков) ---------- */
+.lowfx #noise { mix-blend-mode: normal; opacity: calc(var(--noise, .08) * .45); animation-duration: 1.2s; }
+.lowfx .pt-inner { animation: none; }
+.lowfx .bg .drift-wrap { animation: none; transform: scale(1.03); }
+.lowfx .fx-haze, .lowfx .fx-pass { display: none; }
+.lowfx .fx { mix-blend-mode: normal; opacity: calc(var(--op, 1) * .55); }
+.lowfx .panel-bg { backdrop-filter: none; background: rgba(2,3,4,.9); }
+.lowfx .pause .right { backdrop-filter: none; }
+.lowfx #world.memory .pt-inner { animation: none; }
