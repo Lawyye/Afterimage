@@ -19,3 +19,30 @@ jobs:
         run: node tests/story-sim.mjs 1500
       - name: Сборка
         run: npm run build
+
+  browser:
+    # браузерные тесты: интерфейс на 4 разрешениях, функции, регрессии, точки осмотра, сквозное прохождение
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm i --no-save playwright@1.63.0
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: node tests/review.mjs
+      - run: node tests/features.mjs
+      - run: node tests/ui.mjs
+      - run: node tests/hotspots.mjs
+      - run: node tests/e2e.mjs kind
+      - name: Скриншоты при ошибке
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: tests/out/

@@ -3,7 +3,7 @@
 //                               Открывается двойным кликом, работает без интернета и без папок рядом.
 //  build-artifact/index.html  — веб-версия: иллюстрации грузятся отдельными файлами из assets/.
 import { build, context } from 'esbuild';
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, existsSync, cpSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileStory } from './ink.mjs';
@@ -76,6 +76,8 @@ async function buildAll() {
   if (existsSync(join(dist, 'assets'))) rmSync(join(dist, 'assets'), { recursive: true });
   mkdirSync(join(root, 'build-artifact'), { recursive: true });
   writeFileSync(join(root, 'build-artifact', 'index.html'), page(b, 'web'));
+  // веб-версия грузит иллюстрации отдельными файлами — кладём их рядом, чтобы папка работала сама по себе
+  for (const sub of ['bg', 'portraits', 'bodies']) cpSync(join(root, 'assets', sub), join(root, 'build-artifact', 'assets', sub), { recursive: true, filter: (f) => !f.endsWith('.json') });
   // Android: полный документ, иллюстрации лежат рядом в assets/ (внутри APK)
   mkdirSync(join(root, 'build-android'), { recursive: true });
   writeFileSync(join(root, 'build-android', 'index.html'), page(b, 'dist'));

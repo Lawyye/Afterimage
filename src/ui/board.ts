@@ -91,6 +91,23 @@ export function openBoard(forced: boolean): Promise<void> {
     const clearSel = () => wall.querySelectorAll('.bcard.sel').forEach((c) => c.classList.remove('sel'));
     renderQ();
 
+    // подсказка, если игрок долго не может ничего связать: какой вопрос решаем и с какой улики начать
+    let lastProgress = performance.now();
+    const HINT_AFTER = 90_000;
+    const hintTimer = window.setInterval(() => {
+      if (performance.now() - lastProgress < HINT_AFTER) return;
+      const v = g.vars();
+      const d = DEDUCTIONS.find((x) => !v['ded_' + x.id] && x.pairs.some(([a, b]) => found.includes(a) && found.includes(b)));
+      if (!d) return;
+      const [a] = d.pairs.find(([p1, p2]) => found.includes(p1) && found.includes(p2))!;
+      lastProgress = performance.now();
+      wall.querySelectorAll('.bcard.hint').forEach((c) => c.classList.remove('hint'));
+      wall.querySelector(`.bcard[data-id="${a}"]`)?.classList.add('hint');
+      status.textContent = `Подсказка: вопрос «${d.question}» уже можно решить. Начните с улики «${EV_BY_ID[a]?.title ?? a}».`;
+      status.className = 'status';
+      audio.sfx('hover');
+    }, 5000);
+
     wall.addEventListener('click', (e) => {
       const card = (e.target as HTMLElement).closest('.bcard') as HTMLElement | null;
       if (!card) return;
@@ -106,6 +123,8 @@ export function openBoard(forced: boolean): Promise<void> {
       const d = DEDUCTIONS.find((x) => x.id === active)!;
       const ok = d.pairs.some(([a, b]) => (a === first && b === id) || (a === id && b === first));
       if (ok) {
+        lastProgress = performance.now();
+        wall.querySelectorAll('.bcard.hint').forEach((c) => c.classList.remove('hint'));
         drawThread(first, id);
         g.setVar('ded_' + d.id, true);
         audio.sfx('deduction');
@@ -125,6 +144,7 @@ export function openBoard(forced: boolean): Promise<void> {
     });
 
     const close = () => {
+      clearInterval(hintTimer);
       window.removeEventListener('keydown', onKey, true);
       board.remove();
       audio.sfx('back');

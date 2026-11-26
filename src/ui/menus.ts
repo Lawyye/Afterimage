@@ -97,11 +97,19 @@ export async function chapterCard(text: string, token: Token) {
   ui().appendChild(c);
   requestAnimationFrame(() => c.classList.add('on'));
   audio.sfx('chapter');
+  // касание или любая клавиша — пропустить заставку главы
+  let skip: () => void = () => undefined;
+  const skipped = new Promise<void>((r) => (skip = r));
+  const onKey = (e: KeyboardEvent) => { if (e.key !== 'Escape') skip(); };
+  const view = document.getElementById('viewport')!;
+  setTimeout(() => { view.addEventListener('pointerdown', skip); window.addEventListener('keydown', onKey); }, 350);
   try {
-    await sleep(3600, token);
+    await Promise.race([sleep(3600, token), skipped]);
     c.classList.remove('on');
-    await sleep(1000, token);
+    await Promise.race([sleep(1000, token), skipped.then(() => sleep(250, token))]);
   } finally {
+    view.removeEventListener('pointerdown', skip);
+    window.removeEventListener('keydown', onKey);
     c.remove();
   }
 }

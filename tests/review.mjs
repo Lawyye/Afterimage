@@ -153,6 +153,49 @@ for (let i = 0; i < 2; i++) { await page.evaluate(() => { const d = window.__gam
 ok((await page.locator('.dlg .text').textContent()) !== tm || await page.locator('.choices .choice').count() > 0, 'после загрузки старого сохранения игра не идёт дальше');
 await page.evaluate(() => localStorage.removeItem('afterimage.v1.save.s5'));
 
+// 13. карточка главы пропускается касанием
+await page.evaluate(() => window.__game.jump('ch1'));
+await page.waitForTimeout(900);
+ok(await page.locator('.chapter-card').count() === 1, 'нет карточки главы');
+await page.touchscreen.tap(400, 180);
+await page.waitForTimeout(900);
+ok(await page.locator('.chapter-card').count() === 0, 'карточка главы не пропускается касанием');
+await page.waitForTimeout(2500);
+
+// 14. авточтение стоит, пока открыта пауза, и продолжается после
+await page.evaluate(() => { const d = window.__game.dialogue; if (d.typing) d.advance(); });
+await page.waitForTimeout(300);
+await page.evaluate(() => window.__game.dialogue.setAuto(true));
+await page.waitForTimeout(150);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+const pa = await page.locator('.dlg .text').textContent();
+await page.waitForTimeout(6000);
+ok((await page.locator('.dlg .text').textContent()) === pa, 'авточтение листает текст при открытой паузе');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(6000);
+ok((await page.locator('.dlg .text').textContent()) !== pa, 'после паузы авточтение не продолжилось');
+await page.evaluate(() => window.__game.dialogue.setAuto(false));
+
+// 15. **жирный** и *курсив* в тексте реплики
+await page.evaluate(() => { const g = window.__game; void g.dialogue.show({ speaker: null, expr: null, text: '**Жирный** и *курсив*', tags: [] }, g.token, true, true); });
+await page.waitForTimeout(300);
+ok(await page.evaluate(() => { const t = document.querySelector('.dlg .text'); return !!t.querySelector('.strong') && t.textContent === 'Жирный и курсив'; }), 'разметка **жирного** разбирается неверно');
+
+// 16. отметка «выбирали раньше» и подтверждение перезаписи сохранения
+await page.evaluate(() => {
+  const gm = window.__game;
+  void gm.choices.present([{ kind: 'normal', text: 'Тестовый вариант прошлого', index: 0 }], 0, gm.token);
+});
+await page.waitForTimeout(500);
+await page.locator('.choices .choice').first().tap();
+await page.waitForTimeout(800);
+await page.evaluate(() => { const gm = window.__game; void gm.choices.present([{ kind: 'normal', text: 'Тестовый вариант прошлого', index: 0 }, { kind: 'normal', text: 'Новый', index: 1 }], 0, gm.token); });
+await page.waitForTimeout(500);
+ok(await page.locator('.choices .choice.was .past').count() === 1, 'нет отметки «выбирали раньше»');
+await page.locator('.choices .choice').nth(1).tap();
+await page.waitForTimeout(800);
+
 // 7. уведомлений одновременно не больше трёх
 await page.evaluate(() => { for (let i = 0; i < 6; i++) window.__game.toast('ev', 'Тест', 'уведомление ' + i); });
 ok(await page.locator('.toasts .toast').count() <= 3, 'уведомлений больше трёх');

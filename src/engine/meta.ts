@@ -33,6 +33,7 @@ interface Meta {
   lastSlot: string | null;
   art: string[]; // открытое в галерее: bg:<id>, pt:<id>:<expr>
   tips?: string[]; // показанные подсказки по управлению
+  picked?: string[]; // отпечатки выбранных когда-либо вариантов («послеобраз» прошлых решений)
 }
 
 const meta: Meta = Object.assign({ endings: [], chron: {}, seen: [], runs: 0, lastSlot: null, art: [] }, Storage2.read<Partial<Meta>>('meta', {}));
@@ -61,6 +62,9 @@ export const Meta = {
   setLast(slot: string) { meta.lastSlot = slot; persist(); },
   seeArt(key: string) { if (!artSet.has(key)) { artSet.add(key); dirty = true; } },
   hasArt(key: string) { return artSet.has(key); },
+  /** Выбирал ли игрок этот вариант в каком-нибудь прошлом прохождении */
+  wasPicked(key: string) { return (meta.picked ?? []).includes(key); },
+  markPicked(key: string) { const a = (meta.picked ??= []); if (!a.includes(key)) { a.push(key); if (a.length > 3000) a.shift(); dirty = true; } },
   /** Подсказку показываем один раз за всё время: true — если её ещё не было (и она отмечается показанной) */
   firstTip(key: string) { const t = (meta.tips ??= []); if (t.includes(key)) return false; t.push(key); persist(); return true; },
   flush: persist,

@@ -44,7 +44,19 @@ async function measure(name, setup, ms = 7000) {
   });
   await cdp.send('LayerTree.disable').catch(() => {});
   const drawn = layers.filter((l) => l.drawsContent);
-  const memMB = Math.round(drawn.reduce((a, l) => a + l.width * l.height, 0) * 2.625 * 2.625 * 4 / 1048576);
+  // слой хранится в видеопамяти в своём итоговом масштабе: размер × накопленный масштаб родителей × плотность экрана
+  const byId = new Map(layers.map((l) => [l.layerId, l]));
+  const scaleOf = (l) => {
+    let sx = 1, sy = 1, cur = l;
+    while (cur) {
+      const t = cur.transform;
+      if (t) { sx *= Math.hypot(t[0], t[1]); sy *= Math.hypot(t[4], t[5]); }
+      cur = cur.parentLayerId ? byId.get(cur.parentLayerId) : null;
+    }
+    return [sx, sy];
+  };
+  const memMB = Math.round(drawn.reduce((a, l) => { const [sx, sy] = scaleOf(l); return a + l.width * sx * l.height * sy; }, 0) * 2.625 * 2.625 * 4 / 1048576);
+  const rawMB = Math.round(drawn.reduce((a, l) => a + l.width * l.height, 0) * 2.625 * 2.625 * 4 / 1048576);
   const big = drawn.map((l) => ({ w: Math.round(l.width), h: Math.round(l.height) })).sort((a, b) => b.w * b.h - a.w * a.h).slice(0, 6);
   const trace = JSON.parse(buf.toString());
   const ev = trace.traceEvents ?? trace;
@@ -57,7 +69,7 @@ async function measure(name, setup, ms = 7000) {
   const d = frames.slice(1).map((x, i) => x - frames[i]);
   const secs = (frames.at(-1) - frames[0]) / 1000;
   const r = { name, fps: +(d.length / secs).toFixed(1), jank: d.filter((x) => x > 50).length, worst: Math.round(Math.max(...d)),
-    rasterMs: Math.round(raster / 1000), rasterTasks: rasterN, paintMs: Math.round(paint / 1000), layers: drawn.length, layerMB: memMB, big };
+    rasterMs: Math.round(raster / 1000), rasterTasks: rasterN, paintMs: Math.round(paint / 1000), layers: drawn.length, layerMB: memMB, layerMBunscaled: rawMB, big };
   await page.screenshot({ path: `${OUT}/${label}-${name}.png` });
   return r;
 }

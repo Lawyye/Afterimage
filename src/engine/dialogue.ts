@@ -17,14 +17,15 @@ interface Seg { t: string; cls?: string; pause?: number }
 
 function parseMarkup(src: string): Seg[] {
   const out: Seg[] = [];
-  const re = /(\*[^*]+\*|!![^!]+!!|%%[^%]+%%|\|\|)/g;
+  const re = /(\*\*[^*]+\*\*|\*[^*]+\*|!![^!]+!!|%%[^%]+%%|\|\|)/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) {
     if (m.index > last) out.push({ t: src.slice(last, m.index) });
     const s = m[0];
     if (s === '||') out.push({ t: '', pause: 420 });
-    else if (s.startsWith('**') || s.startsWith('*')) out.push({ t: s.slice(1, -1), cls: 'em' });
+    else if (s.startsWith('**')) out.push({ t: s.slice(2, -2), cls: 'strong' });
+    else if (s.startsWith('*')) out.push({ t: s.slice(1, -1), cls: 'em' });
     else if (s.startsWith('!!')) out.push({ t: s.slice(2, -2), cls: 'red' });
     else out.push({ t: s.slice(2, -2), cls: 'gl' });
     last = m.index + s.length;
@@ -45,11 +46,15 @@ const ORPHEUS_SVG = `<div class="o-ring o-r1">${SVG('<circle r="128" fill="none"
 <div class="lbl">ОРФЕЙ</div>`;
 
 export class Dialogue {
+  /** Игра на паузе (меню, панель, документ) — авточтение не листает */
+  static paused: () => boolean = () => false;
   root = el('div', 'dlg hidden');
   private nameEl = el('div', 'name');
   private textEl = el('div', 'text');
   private nextEl = el('div', 'next');
   private modes = el('div', 'modes');
+  /** Для экранного диктора: реплика целиком (печатная машинка выводит её по буквам) */
+  private sr = el('div', 'sr-only');
   private orpheus = el('div', 'orpheus');
   private resolveAdvance: (() => void) | null = null;
   private typing = false;
@@ -65,7 +70,10 @@ export class Dialogue {
     const rule = el('div', 'rule');
     const inner = el('div', 'inner');
     inner.appendChild(this.textEl);
-    this.root.append(rule, this.nameEl, inner, this.nextEl, this.modes);
+    this.root.append(rule, this.nameEl, inner, this.nextEl, this.modes, this.sr);
+    this.sr.setAttribute('aria-live', 'polite');
+    this.sr.setAttribute('role', 'status');
+    this.textEl.setAttribute('aria-hidden', 'true');
     this.modes.innerHTML = `<button data-m="back" title="Назад к прошлой реплике (Backspace)">◂ НАЗАД</button><button data-m="log" title="Журнал реплик (L)">ЛОГ</button><button data-m="auto" title="Авточтение (A)">АВТО</button><button data-m="skip" title="Пропуск прочитанного (S)">ПРОПУСК</button><button data-m="hide" title="Скрыть интерфейс (H)">СКРЫТЬ</button><button data-m="qsave" class="wide" title="Быстрое сохранение (F5)">Б.СОХР</button><button data-m="qload" class="wide" title="Быстрая загрузка (F9)">Б.ЗАГР</button>`;
     this.modes.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -148,6 +156,7 @@ export class Dialogue {
       this.nameEl.classList.add('on');
     } else this.nameEl.classList.remove('on');
     this.textEl.className = 'text' + (!line.speaker ? ' narr' : line.speaker === 'thought' ? ' thought' : line.speaker === 'sys' ? ' sys' : isOrpheus ? ' orpheus' : '');
+    this.sr.textContent = (ch?.name ? (line.name ?? ch.name) + ': ' : line.name ? line.name + ': ' : '') + plainText(line.text);
     // текст
     const segs = parseMarkup(line.text);
     this.textEl.innerHTML = '';
@@ -217,7 +226,14 @@ export class Dialogue {
       token.onCancel(() => res());
       if (this.auto) {
         const len = plainText(line.text).length;
-        const t = setTimeout(() => this.resolveAdvance === res && this.advance(), settings.autoDelay * 1000 + len * 28);
+        let t = 0;
+        // пока открыта пауза, журнал или документ — авточтение стоит и ждёт
+        const fire = () => {
+          if (this.resolveAdvance !== res || !this.auto) return;
+          if (Dialogue.paused()) { t = window.setTimeout(fire, 400); return; }
+          this.advance();
+        };
+        t = window.setTimeout(fire, settings.autoDelay * 1000 + len * 28);
         token.onCancel(() => clearTimeout(t));
       }
     });

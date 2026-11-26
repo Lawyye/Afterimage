@@ -18,6 +18,8 @@ export interface Settings {
   textSize: number; // множитель размера текста реплик 0.85..1.3
 }
 
+// системная настройка «уменьшить движение»: вспышки и тряска по умолчанию выключены
+const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const defaults: Settings = {
   master: 0.8,
   music: 0.7,
@@ -27,8 +29,8 @@ const defaults: Settings = {
   textSpeed: 55,
   autoDelay: 1.6,
   fx: 0.7,
-  glitch: true,
-  shake: true,
+  glitch: !reduceMotion,
+  shake: !reduceMotion,
   timers: true,
   vibrate: true,
   boxAlpha: 1,

@@ -1,6 +1,7 @@
 // Выборы: обычный список (в т.ч. с таймером и заблокированными вариантами)
 // и режим осмотра — интерактивные зоны поверх фона.
-import { el, escapeHtml, Token } from './util';
+import { el, escapeHtml, Token, hash } from './util';
+import { Meta } from './meta';
 import { audio } from './audio';
 import { settings } from './settings';
 import { HOTSPOTS } from '../data/hotspots';
@@ -43,7 +44,11 @@ export class ChoiceUI {
       this.root = box;
       let done = false;
       let raf = 0;
+      // «послеобраз» прошлых прохождений: варианты, выбранные раньше, помечаются (запоминаются в начале прохождения)
+      const key = (c: ParsedChoice) => 'c' + hash(c.text);
+      const pastRun = new Set(visible.filter((c) => c.kind === 'normal' && Meta.wasPicked(key(c))).map((c) => c.index));
       const finish = (c: ParsedChoice, btn?: HTMLElement) => {
+        if (c.kind === 'normal') Meta.markPicked(key(c));
         if (done) return;
         done = true;
         cancelAnimationFrame(raf);
@@ -54,6 +59,8 @@ export class ChoiceUI {
         setTimeout(() => { box.remove(); resolve(c.index); }, 520);
       };
       const useTimer = timer > 0 && settings.timers && !!timeout;
+      // время на решение = заданное сценарием + время, чтобы прочитать варианты (≈15 букв в секунду)
+      if (useTimer) timer += visible.reduce((n, c) => n + c.text.length, 0) / 15;
       if (useTimer) {
         const lbl = el('div', 'timer-label', 'РЕШАЙТЕ');
         const bar = el('div', 'timer');
@@ -79,7 +86,9 @@ export class ChoiceUI {
       visible.forEach((c, i) => {
         const b = el('button', 'choice' + (c.kind === 'locked' ? ' locked' : '') + (c.risky ? ' risky' : ''));
         b.style.animationDelay = `${i * 70}ms`;
-        b.innerHTML = `<span class="k">${c.kind === 'locked' ? '✕' : i + 1}</span><span>${escapeHtml(c.text)}${c.kind === 'locked' && c.hint ? `<small>${escapeHtml(c.hint)}</small>` : ''}</span>`;
+        b.innerHTML = `<span class="k">${c.kind === 'locked' ? '✕' : i + 1}</span><span>${escapeHtml(c.text)}${c.kind === 'locked' && c.hint ? `<small>${escapeHtml(c.hint)}</small>` : ''}</span>`
+          + (pastRun.has(c.index) ? '<em class="past" title="Этот вариант вы уже выбирали раньше">◷ выбирали раньше</em>' : '');
+        if (pastRun.has(c.index)) b.classList.add('was');
         if (c.kind !== 'locked') {
           b.addEventListener('click', (e) => { e.stopPropagation(); finish(c, b); });
           b.addEventListener('mouseenter', () => audio.sfx('hover', 0.5));

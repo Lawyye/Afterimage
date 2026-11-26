@@ -27,6 +27,10 @@ function panel(title: string, tabs: [string, string][], onTab: (t: string, body:
     const root = overlayRoot();
     const bg = el('div', 'panel-bg');
     const p = el('div', 'panel');
+    p.setAttribute('role', 'dialog');
+    p.setAttribute('aria-modal', 'true');
+    p.setAttribute('aria-label', title);
+    const prevFocus = document.activeElement as HTMLElement | null;
     const header = el('header');
     header.innerHTML = `<h2>${escapeHtml(title)}</h2>`;
     const tabsEl = el('div', 'tabs');
@@ -55,6 +59,7 @@ function panel(title: string, tabs: [string, string][], onTab: (t: string, body:
       current = null;
       window.removeEventListener('keydown', onKey, true);
       bg.remove(); p.remove();
+      prevFocus?.focus?.({ preventScroll: true });
       audio.sfx('back');
       resolve();
     };
@@ -62,7 +67,17 @@ function panel(title: string, tabs: [string, string][], onTab: (t: string, body:
     current = handle;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+      // Tab не уходит из окна: фокус ходит по его кнопкам по кругу
+      if (e.key === 'Tab') {
+        const f = [...p.querySelectorAll<HTMLElement>('button, [href], input, select, [tabindex]:not([tabindex="-1"])')].filter((x) => !x.hasAttribute('disabled'));
+        if (!f.length) return;
+        const i = f.indexOf(document.activeElement as HTMLElement);
+        const n = e.shiftKey ? (i <= 0 ? f.length - 1 : i - 1) : (i < 0 || i === f.length - 1 ? 0 : i + 1);
+        e.preventDefault();
+        f[n].focus({ preventScroll: true });
+      }
     };
+    setTimeout(() => (p.querySelector<HTMLElement>('.tabs button.on') ?? closeBtn).focus({ preventScroll: true }), 30);
     window.addEventListener('keydown', onKey, true);
     closeBtn.addEventListener('click', close);
     bg.addEventListener('click', close);
@@ -396,12 +411,17 @@ export function openSaves(mode: 'save' | 'load') {
         : `<b>${name}</b><h4>Пусто</h4>`;
       if (d && slot !== 'auto') {
         const del = el('span', 'del', 'УДАЛИТЬ');
-        del.addEventListener('click', (e) => { e.stopPropagation(); Saves.remove(slot); closePanel(); openSaves(mode); });
+        del.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!(await confirm(`Удалить сохранение «${d.chapterTitle} · ${d.clock}»? Это нельзя отменить.`, 'УДАЛИТЬ', 'ОТМЕНА'))) return;
+          Saves.remove(slot); closePanel(); openSaves(mode);
+        });
         b.appendChild(del);
       }
-      b.addEventListener('click', () => {
+      b.addEventListener('click', async () => {
         if (mode === 'save') {
           if (!api.g.canSave()) { api.g.toast('bad', 'Сохранение', 'Сейчас сохранить нельзя.'); return; }
+          if (d && !(await confirm(`Перезаписать «${d.chapterTitle} · ${d.clock}»?`, 'ПЕРЕЗАПИСАТЬ', 'ОТМЕНА'))) return;
           const ok = api.g.save(slot);
           audio.sfx(ok ? 'confirm' : 'wrong');
           closePanel();

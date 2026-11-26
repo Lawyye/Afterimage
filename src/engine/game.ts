@@ -78,6 +78,7 @@ export class Game implements GameApi {
     this.investigation = new Investigation(this.ui, this.stage);
     this.dialogue.onLog = () => openLog();
     ChoiceUI.paused = () => pauseOpen() || panelOpen() || docOpen() || !!document.querySelector('.confirm');
+    Dialogue.paused = ChoiceUI.paused;
     this.dialogue.onQuick = (m) => (m === 'back' ? this.rollback() : m === 'hide' ? this.hideUi() : m === 'qsave' ? this.quickSave() : this.quickLoad());
     this.stage.onSeen = (key) => Meta.seeArt(key);
     this.ui.append(this.hud, this.toasts);
@@ -619,7 +620,6 @@ export class Game implements GameApi {
       idx = await this.investigation.present(parsed, this.stage.bgId ?? '', this.examined, token, (this.story.variablesState.$('inv_limit') as number) || 0);
     } else {
       if (this.dialogue.skip) this.dialogue.setSkip(false);
-      if (this.dialogue.auto) this.dialogue.setAuto(false);
       idx = await this.choices.present(parsed, timer, token);
       const c = parsed[idx];
       if (c.kind === 'normal') this.log.push({ who: null, text: c.text, kind: 'choice' });
