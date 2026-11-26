@@ -12,7 +12,7 @@ import { GALLERY_BG, GALLERY_CHARS } from '../data/gallery';
 import { icon } from './icons';
 import { api, overlayRoot } from './api';
 import { openDoc } from './docs';
-import { portraitUrl, bgUrl, portraitExprs } from '../engine/stage';
+import { portraitUrl, bgUrl, portraitExprs, isFullBody } from '../engine/stage';
 import { plainText } from '../engine/dialogue';
 import { toggleFullscreen, isFullscreen, fullscreenSupported } from './fullscreen';
 
@@ -121,7 +121,7 @@ export function openJournal(tab?: string) {
         const ch = CHARACTERS[p.id];
         const row = el('div', 'person');
         const anon = v[p.id + '_named'] === false;
-        row.innerHTML = `<div class="ph"><img src="${portraitUrl(p.id, 'neutral')}" alt=""></div><div><h4>${escapeHtml(anon ? '???' : ch.name)}</h4><div class="role">${escapeHtml(anon ? 'Не представился' : ch.role)}</div><p>${escapeHtml(anon ? 'Вы видели этого человека, но не знаете, кто он.' : p.bio)}</p>${p.rel ? `<div class="rel">ОТНОШЕНИЕ: <span>${escapeHtml(p.rel(v))}</span></div>` : ''}</div>`;
+        row.innerHTML = `<div class="ph"><img src="${portraitUrl(p.id, 'neutral')}" alt=""${isFullBody(p.id) ? ' class="full"' : ''}></div><div><h4>${escapeHtml(anon ? '???' : ch.name)}</h4><div class="role">${escapeHtml(anon ? 'Не представился' : ch.role)}</div><p>${escapeHtml(anon ? 'Вы видели этого человека, но не знаете, кто он.' : p.bio)}</p>${p.rel ? `<div class="rel">ОТНОШЕНИЕ: <span>${escapeHtml(p.rel(v))}</span></div>` : ''}</div>`;
         grid.appendChild(row);
       }
       if (!orpheusSeen(v)) { grid.appendChild(unknownCard()); body.appendChild(grid); return; }
@@ -292,7 +292,7 @@ export function openGallery() {
           if (has) open++;
           const c = el('button', 'g-tile g-pt' + (has ? '' : ' locked'));
           const name = CHARACTERS[id].name;
-          c.innerHTML = has ? `<img src="${portraitUrl(id, e)}" alt="" loading="lazy"><span>${escapeHtml(name)}</span>` : '<i>?</i>';
+          c.innerHTML = has ? `<img src="${portraitUrl(id, e)}" alt="" loading="lazy"${isFullBody(id) ? ' class="full"' : ''}><span>${escapeHtml(name)}</span>` : '<i>?</i>';
           if (has) c.addEventListener('click', () => viewer(portraitUrl(id, e), name));
           grid.appendChild(c);
         }

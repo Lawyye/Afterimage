@@ -37,7 +37,7 @@ for (const d of DEDUCTIONS) for (const p of d.pairs) for (const id of p) if (!ev
 for (const d of DEDUCTIONS) if (!source.includes('ded_' + d.id)) problems.push(`Вывод ded_${d.id} не объявлен в сценарии`);
 for (const m of source.matchAll(/# doc: ([a-z_]+)/g)) if (!DOCS[m[1]]) problems.push(`Нет документа ${m[1]}`);
 for (const e of EVIDENCE) if (e.doc && !DOCS[e.doc]) problems.push(`Улика ${e.id}: нет документа ${e.doc}`);
-const KNOWN_TAGS = new Set(['bg', 'show', 'hide', 'expr', 'music', 'amb', 'sfx', 'rain', 'fx', 'flash', 'shake', 'bars', 'fade', 'wait', 'time', 'goal', 'chapter', 'flashpt', 'autosave', 'timer', 'intro', 'cam', 'layer', 'doc', 'cctv', 'board', 'chronicle', 'ending']);
+const KNOWN_TAGS = new Set(['bg', 'show', 'hide', 'expr', 'pose', 'music', 'amb', 'sfx', 'rain', 'fx', 'flash', 'shake', 'bars', 'fade', 'wait', 'time', 'goal', 'chapter', 'flashpt', 'autosave', 'timer', 'intro', 'cam', 'layer', 'doc', 'cctv', 'board', 'chronicle', 'ending']);
 const SFX = new Set(['hover', 'click', 'confirm', 'back', 'choice', 'evidence', 'deduction', 'wrong', 'tick', 'timeout', 'glitch', 'static', 'glass', 'heartbeat', 'rig_on', 'rig_off', 'phone', 'door', 'door_slide', 'buzz', 'elevator', 'typing', 'paper', 'camera', 'stinger', 'boom', 'whoosh', 'chapter', 'drip', 'purr', 'gunshot', 'thunder', 'scan', 'breath', 'fall', 'silence_hit', 'crunch']);
 const MUSIC = new Set(['title', 'insomnia', 'investigation', 'tension', 'memory', 'grief', 'confront', 'ending', 'open', 'sonya', 'off']);
 const AMB = new Set(['rain_out', 'rain_in', 'apartment', 'highrise', 'street', 'canal', 'den', 'office', 'columbarium', 'hall', 'memory', 'stairwell', 'cell', 'dawn', 'taxi', 'off', 'silence']);
@@ -57,7 +57,7 @@ function checkTag(t, where) {
   if (k === 'music' && !MUSIC.has(a[0])) problems.push(`Неизвестная музыка ${a[0]}`);
   if (k === 'amb' && !AMB.has(a[0])) problems.push(`Неизвестная атмосфера ${a[0]}`);
   if (k === 'bg' && !BGS.has(a[0])) problems.push(`Неизвестный фон ${a[0]}`);
-  if ((k === 'show' || k === 'expr' || k === 'flashpt') && !CHARS.has(a[0])) problems.push(`Неизвестный персонаж ${a[0]}`);
+  if ((k === 'show' || k === 'expr' || k === 'flashpt' || k === 'pose') && !CHARS.has(a[0])) problems.push(`Неизвестный персонаж ${a[0]}`);
 }
 
 // --- прохождения

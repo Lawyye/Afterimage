@@ -1,5 +1,5 @@
 // Сцена: фон, портреты персонажей, камера и визуальные эффекты.
-import { el, sleep, Token, haptic } from './util';
+import { el, sleep, Token, haptic, LOWFX } from './util';
 import { Weather, Noise, Glitch } from './fx';
 import { settings, onSettings } from './settings';
 import manifest from '../../assets/portraits/manifest.json';
@@ -8,8 +8,17 @@ import { asset } from './assets';
 
 export type Side = 'left' | 'right' | 'center';
 type Box = [number, number, number, number]; // left, top, width, height в процентах кадра
-type Manifest = Record<string, { exprs: Record<string, { talk?: Box; blink?: Box }> }>;
+type ExprMap = Record<string, { talk?: Box; blink?: Box }>;
+/** Манифест v2: exprs — основная поза (как раньше), poses — дополнительные позы со своими эмоциями и накладками,
+ * full — персонаж нарисован в полный рост (другая раскладка). Старый манифест читается без изменений. */
+interface PortraitEntry { exprs: ExprMap; full?: boolean; poses?: Record<string, { exprs: ExprMap }> }
+type Manifest = Record<string, PortraitEntry>;
 const MAN = manifest as unknown as Manifest;
+/** Добавить или заменить описание персонажа во время работы (тесты, моды) */
+export function definePortrait(id: string, entry: PortraitEntry) { MAN[id] = entry; }
+const exprsOf = (id: string, pose = ''): ExprMap => (pose && MAN[id]?.poses?.[pose]?.exprs) || MAN[id]?.exprs || {};
+export const hasPose = (id: string, pose: string) => !pose || !!MAN[id]?.poses?.[pose];
+export const isFullBody = (id: string) => !!MAN[id]?.full;
 
 const ALIAS: Record<string, string[]> = {
   warm: ['smile', 'neutral'], soft: ['smile', 'neutral'], tired: ['neutral'], calm: ['neutral'], blank: ['neutral'],
@@ -25,18 +34,19 @@ const ALIAS: Record<string, string[]> = {
 // Положение глаз для эффекта «пустого белого взгляда» (координаты портрета 600×806)
 const GLITCH_EYES: Record<string, [number, number][]> = { eva: [[41.7, 40.6], [68.3, 42.8]] }; // проценты кадра
 
-export function resolveExpr(id: string, expr: string): string {
+export function resolveExpr(id: string, expr: string, pose = ''): string {
   if (expr === 'glitch' && GLITCH_EYES[id]) expr = 'shock';
-  const m = MAN[id];
-  if (!m) return expr;
-  if (m.exprs[expr]) return expr;
-  for (const a of ALIAS[expr] ?? []) if (m.exprs[a]) return a;
-  for (const a of ALIAS.neutral) if (m.exprs[a]) return a;
-  return Object.keys(m.exprs)[0];
+  if (!MAN[id]) return expr;
+  const m = exprsOf(id, pose);
+  if (m[expr]) return expr;
+  for (const a of ALIAS[expr] ?? []) if (m[a]) return a;
+  for (const a of ALIAS.neutral) if (m[a]) return a;
+  return Object.keys(m)[0];
 }
 export const hasPortrait = (id: string) => !!MAN[id];
 export const portraitExprs = (id: string) => Object.keys(MAN[id]?.exprs ?? {});
-export const portraitUrl = (id: string, expr: string, v = '') => asset(`assets/portraits/${id}_${resolveExpr(id, expr)}${v ? '_' + v : ''}.webp`);
+export const portraitUrl = (id: string, expr: string, v = '', pose = '') =>
+  asset(`assets/portraits/${id}${pose ? '@' + pose : ''}_${resolveExpr(id, expr, pose)}${v ? '_' + v : ''}.webp`);
 export const bgUrl = (id: string) => asset(`assets/bg/${id}.webp`);
 /** Размытая подсветка текущего фона в боковых полях вытянутых экранов (20:9 и т. п.) */
 let ambientUrl: string | null = null;
@@ -73,10 +83,13 @@ export function whenDecoded(img: HTMLImageElement): Promise<void> {
 export function allAssetUrls(): string[] {
   const urls: string[] = [];
   for (const [id, m] of Object.entries(MAN)) {
-    for (const [e, f] of Object.entries(m.exprs)) {
-      urls.push(asset(`assets/portraits/${id}_${e}.webp`));
-      if (f.talk) urls.push(asset(`assets/portraits/${id}_${e}_talk.webp`));
-      if (f.blink) urls.push(asset(`assets/portraits/${id}_${e}_blink.webp`));
+    for (const pose of ['', ...Object.keys(m.poses ?? {})]) {
+      const pre = `assets/portraits/${id}${pose ? '@' + pose : ''}`;
+      for (const [e, f] of Object.entries(exprsOf(id, pose))) {
+        urls.push(asset(`${pre}_${e}.webp`));
+        if (f.talk) urls.push(asset(`${pre}_${e}_talk.webp`));
+        if (f.blink) urls.push(asset(`${pre}_${e}_blink.webp`));
+      }
     }
   }
   return urls;
@@ -95,11 +108,13 @@ interface Portrait {
   hasTalk: boolean;
   hasBlink: boolean;
   blinkTimer: number;
+  flapTimer: number; // свой таймер речи у каждого портрета
+  pose: string; // '' — основная поза
 }
 
 export interface StageSnapshot {
   bg: string | null;
-  portraits: { id: string; expr: string; side: Side }[];
+  portraits: { id: string; expr: string; side: Side; pose?: string }[];
   memory: boolean;
   bars: boolean;
   rain: Weather['mode'];
@@ -124,12 +139,10 @@ export class Stage {
   private memory = false;
   private tint: string | null = null;
   private speaking: string | null = null;
-  private flapTimer = 0;
-  private flap = false;
   /** Вызывается, когда игрок увидел фон или эмоцию персонажа (для галереи) */
   onSeen: ((key: string) => void) | null = null;
 
-  readonly lowfx = matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4;
+  readonly lowfx = LOWFX;
   constructor() {
     this.stage.classList.toggle('lowfx', this.lowfx);
     onSettings((s) => this.stage.style.setProperty('--box-a', String(s.boxAlpha)));
@@ -170,16 +183,19 @@ export class Stage {
   setBg(id: string | null, fade = 1.0) {
     if (id === this.bgId && this.currentBg) return;
     this.bgId = id;
-    const old = this.currentBg;
-    const fadeOut = () => {
-      if (!old) return;
-      old.style.setProperty('--dur', `${fade}s`);
-      old.classList.remove('on');
-      setTimeout(() => old.remove(), fade * 1000 + 80);
+    // гаснут все прежние фоны, а не только предыдущий: при быстрой смене A→B→C промежуточные не застревают
+    const fadeOthers = (keep: HTMLElement | null) => {
+      for (const o of [...this.bgLayer.children] as HTMLElement[]) {
+        if (o === keep || o.dataset.leaving) continue;
+        o.dataset.leaving = '1';
+        o.style.setProperty('--dur', `${fade}s`);
+        o.classList.remove('on');
+        setTimeout(() => o.remove(), fade * 1000 + 80);
+      }
     };
     this.hotspotLayer.innerHTML = '';
     if (!id) {
-      fadeOut();
+      fadeOthers(null);
       this.currentBg = null;
       setAmbient(null);
       return;
@@ -199,8 +215,9 @@ export class Stage {
     this.currentBg = bg;
     // проявляем фон только после декодирования — иначе картинка «выскакивает» посреди перехода
     whenDecoded(img).then(() => requestAnimationFrame(() => {
-      fadeOut();
-      if (!bg.isConnected) return;
+      // фон успели сменить ещё раз — этот уже не нужен: убираем, не проявляя
+      if (this.currentBg !== bg) { if (!bg.dataset.leaving) bg.remove(); return; }
+      fadeOthers(bg);
       bg.classList.add('on');
       setAmbient(img.src);
     }));
@@ -224,9 +241,22 @@ export class Stage {
   }
 
   // ----------------------------------------------------------- portraits
+  private lastSide = new Map<string, Side>();
+  /** Сторона для персонажа без явного указания: где стоял раньше → привычная → свободная (не выталкивать соседа) */
+  private autoSide(id: string): Side {
+    const taken = (s: Side) => [...this.portraits.values()].some((p) => p.side === s && p.id !== id);
+    const pref = this.lastSide.get(id) ?? (id === 'eva' ? 'right' : 'left');
+    if (!taken(pref)) return pref;
+    const other: Side = pref === 'left' ? 'right' : 'left';
+    return taken(other) ? pref : other;
+  }
+  /** Забыть сторону персонажа (после мгновенной вспышки по центру) */
+  forgetSide(id: string) { this.lastSide.delete(id); }
   show(id: string, expr = 'neutral', side?: Side) {
     if (!hasPortrait(id)) return;
-    const s: Side = side ?? (id === 'eva' ? 'right' : 'left');
+    const existing = this.portraits.get(id);
+    const s: Side = side ?? existing?.side ?? this.autoSide(id);
+    this.lastSide.set(id, s);
     // на одной стороне — один портрет
     for (const p of this.portraits.values()) if (p.side === s && p.id !== id) this.hide(p.id);
     let p = this.portraits.get(id);
@@ -239,7 +269,7 @@ export class Stage {
       this.setExpr(id, expr);
       return;
     }
-    const root = el('div', `pt side-${s}`);
+    const root = el('div', `pt side-${s}` + (isFullBody(id) ? ' pt-full' : ''));
     root.dataset.id = id;
     const inner = el('div', 'pt-inner');
     const mk = (cls: string) => {
@@ -263,7 +293,7 @@ export class Stage {
     this.onSeen?.(`pt:${id}:${e}`);
     a.src = portraitUrl(id, e);
     b.style.opacity = '0';
-    p = { id, expr: e, side: s, root, a, b, talk, blink, front: a, hasTalk: false, hasBlink: false, blinkTimer: 0 };
+    p = { id, expr: e, side: s, root, a, b, talk, blink, front: a, hasTalk: false, hasBlink: false, blinkTimer: 0, flapTimer: 0, pose: '' };
     this.portraits.set(id, p);
     this.updateVariants(p);
     const shown = p;
@@ -282,9 +312,13 @@ export class Stage {
     if (!p) return;
     this.portraits.delete(id);
     clearTimeout(p.blinkTimer);
-    p.root.classList.remove('on');
+    clearInterval(p.flapTimer);
+    if (this.speaking === id) this.speaking = null;
+    // уходящий гаснет сразу и полностью: «затемнение» и «фокус» не должны его удерживать
+    p.root.classList.remove('on', 'dim', 'speaking', 'focus');
     p.root.classList.add('off');
-    setTimeout(() => p.root.remove(), 700);
+    setTimeout(() => p.root.remove(), 500);
+    this.applySpeaking();
   }
   isShown(id: string) {
     return this.portraits.has(id);
@@ -293,26 +327,48 @@ export class Stage {
     const p = this.portraits.get(id);
     if (!p) return;
     p.root.classList.toggle('glitch-eyes', expr === 'glitch');
-    const e = resolveExpr(id, expr);
+    const e = resolveExpr(id, expr, p.pose);
     if (e === p.expr) return;
+    this.swapBase(p, e, p.pose);
+    this.nod(p);
+  }
+  /** Сменить позу (ростовые персонажи). Если такой позы нет в манифесте — ничего не делаем (остаётся бюст). */
+  setPose(id: string, pose: string, quiet = false) {
+    const p = this.portraits.get(id);
+    if (!p || pose === p.pose) return;
+    if (!hasPose(id, pose)) return;
+    this.swapBase(p, resolveExpr(id, p.expr, pose), pose);
+    // жест-акцент: короткое «движение» всей фигуры (только transform — без перерисовки)
+    if (!quiet && !this.lowfx) p.root.animate?.([{ scale: '1' }, { scale: '1.015' }, { scale: '1' }], { duration: 250, easing: 'ease-out' });
+  }
+  /** Лёгкий кивок при смене эмоции: сдвиг слоя на несколько точек, считает видеокарта */
+  private nod(p: Portrait) {
+    p.root.animate?.([{ translate: '0 0' }, { translate: '0 5px' }, { translate: '0 0' }], { duration: 260, easing: 'ease-out' });
+  }
+  /** Перекрёстное растворение основы (эмоция/поза) после декодирования новой картинки;
+   * устаревшая смена пропускается; накладки рта/глаз меняются вместе с лицом, а не раньше */
+  private swapBase(p: Portrait, e: string, pose: string) {
+    const id = p.id;
     p.expr = e;
-    this.onSeen?.(`pt:${id}:${e}`);
+    p.pose = pose;
+    if (!pose) this.onSeen?.(`pt:${id}:${e}`);
     const back = p.front === p.a ? p.b : p.a;
-    back.src = portraitUrl(id, e);
-    // смена эмоции — перекрёстное растворение после декодирования новой картинки;
-    // если за это время эмоция сменилась ещё раз, устаревшая смена пропускается
+    back.src = portraitUrl(id, e, '', pose);
+    p.hasTalk = p.hasBlink = false;
+    p.talk.style.opacity = '0';
+    p.blink.style.opacity = '0';
     whenDecoded(back).then(() => {
-      if (p.expr !== e || this.portraits.get(id) !== p) return;
+      if (p.expr !== e || p.pose !== pose || this.portraits.get(id) !== p) return;
       back.style.opacity = '1';
       if (p.front !== back) {
         p.front.style.opacity = '0';
         p.front = back;
       }
+      setTimeout(() => { if (p.expr === e && p.pose === pose && this.portraits.get(id) === p) this.updateVariants(p); }, 200);
     });
-    this.updateVariants(p);
   }
   private updateVariants(p: Portrait) {
-    const f = MAN[p.id]?.exprs[p.expr] ?? {};
+    const f = exprsOf(p.id, p.pose)[p.expr] ?? {};
     p.hasTalk = !!f.talk;
     p.hasBlink = !!f.blink;
     p.talk.style.opacity = '0';
@@ -323,14 +379,14 @@ export class Stage {
       img.style.width = `${b[2]}%`;
       img.style.height = `${b[3]}%`;
     };
-    if (f.talk) { p.talk.src = portraitUrl(p.id, p.expr, 'talk'); place(p.talk, f.talk); }
-    if (f.blink) { p.blink.src = portraitUrl(p.id, p.expr, 'blink'); place(p.blink, f.blink); }
+    if (f.talk) { p.talk.src = portraitUrl(p.id, p.expr, 'talk', p.pose); place(p.talk, f.talk); }
+    if (f.blink) { p.blink.src = portraitUrl(p.id, p.expr, 'blink', p.pose); place(p.blink, f.blink); }
   }
   private scheduleBlink(p: Portrait) {
     clearTimeout(p.blinkTimer);
     p.blinkTimer = window.setTimeout(() => {
       if (!this.portraits.has(p.id)) return;
-      if (p.hasBlink && !this.flap) {
+      if (p.hasBlink) {
         p.blink.style.opacity = '1';
         setTimeout(() => (p.blink.style.opacity = '0'), 110 + Math.random() * 50);
         if (Math.random() < 0.18) setTimeout(() => { p.blink.style.opacity = '1'; setTimeout(() => (p.blink.style.opacity = '0'), 100); }, 260);
@@ -352,14 +408,16 @@ export class Stage {
   /** Анимация рта во время печати текста */
   mouth(on: boolean) {
     const p = this.speaking ? this.portraits.get(this.speaking) : undefined;
-    clearInterval(this.flapTimer);
-    this.flap = false;
-    for (const q of this.portraits.values()) q.talk.style.opacity = '0';
+    for (const q of this.portraits.values()) { clearInterval(q.flapTimer); q.talk.style.opacity = '0'; }
     if (!on || !p || !p.hasTalk) return;
-    this.flapTimer = window.setInterval(() => {
-      this.flap = !this.flap;
-      p.talk.style.opacity = this.flap ? '1' : '0';
-    }, 95 + Math.random() * 40);
+    // рот не «щёлкает» открыт/закрыт, а ходит между тремя положениями с разной амплитудой
+    const LEVELS = [0, 0.55, 1, 0.55, 0, 0.8, 0.35, 1, 0.6, 0];
+    let i = 0;
+    p.flapTimer = window.setInterval(() => {
+      if (!this.portraits.has(p.id)) { clearInterval(p.flapTimer); return; }
+      i = (i + 1 + (Math.random() < 0.25 ? 1 : 0)) % LEVELS.length;
+      p.talk.style.opacity = String(LEVELS[i]);
+    }, 70 + Math.random() * 30);
   }
 
   // ----------------------------------------------------------- camera / fx
@@ -420,7 +478,7 @@ export class Stage {
   snapshot(): StageSnapshot {
     return {
       bg: this.bgId,
-      portraits: [...this.portraits.values()].map((p) => ({ id: p.id, expr: p.expr, side: p.side })),
+      portraits: [...this.portraits.values()].map((p) => ({ id: p.id, expr: p.expr, side: p.side, ...(p.pose ? { pose: p.pose } : {}) })),
       memory: this.memory,
       bars: this.bars.classList.contains('on'),
       rain: this.weather.mode,
@@ -432,7 +490,7 @@ export class Stage {
     const want = new Map(s.portraits.map((p) => [p.id, p]));
     for (const [id, p] of [...this.portraits]) if (want.get(id)?.side !== p.side) this.hide(id);
     this.setBg(s.bg, 0.4);
-    for (const p of s.portraits) this.show(p.id, p.expr, p.side);
+    for (const p of s.portraits) { this.show(p.id, p.expr, p.side); this.setPose(p.id, p.pose ?? '', true); }
     this.setMemory(s.memory);
     this.setBars(s.bars);
     this.setRain(s.rain);

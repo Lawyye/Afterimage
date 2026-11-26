@@ -29,6 +29,8 @@ export function parseChoice(raw: string, index: number): ParsedChoice {
 }
 
 export class ChoiceUI {
+  /** Игра на паузе (меню, панель, документ, приложение свёрнуто) — таймер стоит, цифры не выбирают */
+  static paused: () => boolean = () => false;
   private root: HTMLElement | null = null;
   private keyHandler: ((e: KeyboardEvent) => void) | null = null;
   constructor(private ui: HTMLElement) {}
@@ -58,12 +60,16 @@ export class ChoiceUI {
         const fill = el('i');
         bar.appendChild(fill);
         box.append(lbl, bar);
-        const t0 = performance.now();
+        // время копится только пока игрок реально видит выбор: пауза и свёрнутое приложение не в счёт
+        let active = 0, prev = performance.now();
         let lastTick = 0;
         const tick = (t: number) => {
-          const k = 1 - (t - t0) / (timer * 1000);
+          const dt = Math.min(100, t - prev);
+          prev = t;
+          if (!ChoiceUI.paused() && document.visibilityState === 'visible') active += dt;
+          const k = 1 - active / (timer * 1000);
           fill.style.transform = `scaleX(${Math.max(0, k)})`;
-          const sec = Math.floor((t - t0) / 1000);
+          const sec = Math.floor(active / 1000);
           if (sec !== lastTick) { lastTick = sec; audio.sfx('tick', 0.6); }
           if (k <= 0) finish(timeout!);
           else raf = requestAnimationFrame(tick);
@@ -82,6 +88,7 @@ export class ChoiceUI {
       });
       this.ui.appendChild(box);
       this.keyHandler = (e: KeyboardEvent) => {
+        if (ChoiceUI.paused()) return;
         const n = parseInt(e.key, 10);
         if (n >= 1 && n <= visible.length) {
           const c = visible[n - 1];

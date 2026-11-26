@@ -95,7 +95,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .pt.side-right { right: 40px; transform: translateX(40px); }
 .pt.side-center { left: 672px; transform: translateY(24px); }
 .pt.on { opacity: 1; transform: none; }
-.pt.off { opacity: 0; }
+/* портрет — свой слой: затемнение при смене говорящего делает видеокарта, без перерисовки картинки */
+.pt { will-change: transform, opacity, filter; }
+.pt.off { opacity: 0 !important; transition: opacity .35s ease !important; }
 .pt.dim { filter: brightness(.6) saturate(.7); opacity: .9; }
 .pt.focus { transform: scale(1.05); }
 .pt-inner { position: absolute; inset: 0;
@@ -212,7 +214,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .dlg .next.on { opacity: 1; animation: nextbob 1s ease-in-out infinite; }
 @keyframes nextbob { 0%,100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(6px); opacity: .5; } }
 .dlg .modes { position: absolute; right: 260px; top: 92px; display: flex; gap: 8px; }
-.dlg .modes button { font: 500 13px var(--f-mono); letter-spacing: .12em; color: var(--dim); padding: 4px 10px; border: 1px solid transparent; }
+.dlg .modes button { font: 500 13px var(--f-mono); letter-spacing: .12em; color: var(--muted); padding: 4px 10px; border: 1px solid transparent; background: rgba(3,5,6,.5); }
 .dlg .modes button:hover { color: var(--text); border-color: var(--line); }
 .dlg .modes button.on { color: var(--amber); border-color: rgba(240,179,90,.4); }
 
@@ -772,6 +774,23 @@ button:focus:not(:focus-visible) { outline: none; }
 /* световые наложения на телефоне неподвижны: постоянная анимация заставляет перерисовывать весь кадр */
 .lowfx .fx:not(.fx-dim), .lowfx .fx:not(.fx-dim)::after { animation: none !important; }
 .pt-talk, .pt-blink { will-change: opacity; }
+.pt-talk { transition: opacity 45ms linear; }
+.pt-blink { transition: opacity 55ms ease-out; }
 .compact .pt { top: 60px; }
 .inv-mode .toasts { top: 250px; }
 .compact.inv-mode .toasts { top: 190px; }
+/* режим памяти на телефоне: без полноэкранного фильтра на весь мир (он пересчитывается каждый кадр из-за дождя) —
+   обесцвечиваются сами картинки один раз при отрисовке, тонировка без режима наложения */
+.lowfx #world.memory { filter: none; }
+.lowfx #world.memory .bg img.base, .lowfx #world.memory .pt-img, .lowfx #world.memory .fx { filter: grayscale(.88) contrast(1.18) brightness(1.18); }
+.lowfx #memory-tint { mix-blend-mode: normal; background: radial-gradient(ellipse at 50% 45%, transparent 38%, rgba(90, 0, 8, 0.42) 100%); }
+
+/* ---------- ростовые персонажи (манифест full: true): ноги у нижнего края, три слота без пересечений ---------- */
+.pt.pt-full { top: auto; bottom: 0; width: 490px; height: 980px; transform-origin: 50% 90%; }
+.pt.pt-full.side-left { left: 85px; }
+.pt.pt-full.side-right { right: 85px; }
+.pt.pt-full.side-center { left: 715px; }
+.pt.pt-full .pt-inner { animation: ptlife 8.5s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+@keyframes ptlife { 0% { transform: none; } 50% { transform: translateY(-3px) scale(1.006) rotate(.25deg); } 100% { transform: translateY(-4px) scale(1.008) rotate(-.2deg); } }
+.lowfx .pt.pt-full .pt-inner { animation: none; }
+.person .ph img.full, .g-tile img.full { object-fit: cover; object-position: 50% 3%; transform: scale(1.8); transform-origin: 50% 4%; }

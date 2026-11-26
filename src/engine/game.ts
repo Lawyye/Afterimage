@@ -36,7 +36,7 @@ function parseLine(text: string, tags: string[]): Line & { voiceOnly: boolean } 
   return { speaker: null, expr: null, text, tags, voiceOnly: false };
 }
 
-const ORDER_PRE = new Set(['bg', 'show', 'hide', 'expr', 'music', 'amb', 'sfx', 'rain', 'fx', 'flash', 'shake', 'bars', 'fade', 'wait', 'time', 'goal', 'chapter', 'flashpt', 'autosave', 'timer', 'intro', 'cam', 'layer']);
+const ORDER_PRE = new Set(['bg', 'show', 'hide', 'expr', 'pose', 'music', 'amb', 'sfx', 'rain', 'fx', 'flash', 'shake', 'bars', 'fade', 'wait', 'time', 'goal', 'chapter', 'flashpt', 'autosave', 'timer', 'intro', 'cam', 'layer']);
 const ORDER_POST = new Set(['doc', 'cctv', 'board', 'chronicle', 'ending']);
 
 export class Game implements GameApi {
@@ -75,6 +75,7 @@ export class Game implements GameApi {
     this.choices = new ChoiceUI(this.ui);
     this.investigation = new Investigation(this.ui, this.stage);
     this.dialogue.onLog = () => openLog();
+    ChoiceUI.paused = () => pauseOpen() || panelOpen() || docOpen() || !!document.querySelector('.confirm');
     this.dialogue.onQuick = (m) => (m === 'back' ? this.rollback() : m === 'hide' ? this.hideUi() : m === 'qsave' ? this.quickSave() : this.quickLoad());
     this.stage.onSeen = (key) => Meta.seeArt(key);
     this.ui.append(this.hud, this.toasts);
@@ -137,6 +138,8 @@ export class Game implements GameApi {
     const glyph = ic === 'up' ? '▲' : ic === 'down' ? '▼' : '';
     t.innerHTML = `<div class="ic">${glyph || (ic ? icon(ic, 'currentColor') : '◆')}</div><div><b>${escapeHtml(title)}</b><span>${escapeHtml(text)}</span></div>`;
     this.toasts.appendChild(t);
+    // не больше трёх уведомлений разом — старые уходят
+    while (this.toasts.children.length > 3) this.toasts.firstElementChild!.remove();
     setTimeout(() => t.remove(), 5000);
   }
 
@@ -440,6 +443,7 @@ export class Game implements GameApi {
         case 'show': this.stage.show(a[0], a[1] ?? 'neutral', (a[2] as Side) ?? undefined); break;
         case 'hide': this.stage.hide(a[0] || 'all'); this.stage.setSpeaker(null); break;
         case 'expr': this.stage.setExpr(a[0], a[1]); break;
+        case 'pose': this.stage.setPose(a[0], a[1] && a[1] !== 'idle' ? a[1] : ''); break;
         case 'music': audio.music(a[0], a[1] ? parseFloat(a[1]) : undefined, a[0] === 'off' ? (a[1] ? parseFloat(a[1]) : 2) : 3); break;
         case 'layer': audio.setIntensity(parseFloat(a[0])); break;
         case 'amb': audio.ambience(a[0], a[1] ? parseFloat(a[1]) : 2); break;
@@ -460,10 +464,20 @@ export class Game implements GameApi {
         case 'timer': this.pendingTimer = parseFloat(a[0]); break;
         case 'autosave': this.autosavePending = true; this.chapterCheckpoint = true; break;
         case 'flashpt': {
-          this.stage.show(a[0], a[1] ?? 'neutral', 'center');
-          this.stage.glitch.burst(0.8, 500);
-          await sleep(420, token);
-          this.stage.hide(a[0]);
+          // вспышка лица; если персонаж уже на сцене — не уводим его с места, а только меняем эмоцию на миг
+          if (this.stage.isShown(a[0])) {
+            const prev = this.stage.snapshot().portraits.find((p) => p.id === a[0])!.expr;
+            this.stage.setExpr(a[0], a[1] ?? 'neutral');
+            this.stage.glitch.burst(0.8, 500);
+            await sleep(420, token);
+            this.stage.setExpr(a[0], prev);
+          } else {
+            this.stage.show(a[0], a[1] ?? 'neutral', 'center');
+            this.stage.glitch.burst(0.8, 500);
+            await sleep(420, token);
+            this.stage.hide(a[0]);
+            this.stage.forgetSide(a[0]);
+          }
           break;
         }
         case 'chapter': {

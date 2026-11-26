@@ -77,3 +77,7 @@ export function haptic(pattern: number | number[]) {
     if (typeof n.vibrate === 'function' && settings.vibrate) n.vibrate(pattern);
   } catch { /* нет вибрации */ }
 }
+
+/** Телефон/планшет или слабый процессор: облегчённая графика. Вычисляется один раз и сразу —
+ * не зависит от порядка создания объектов сцены. */
+export const LOWFX = typeof matchMedia === 'function' && (matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4);

@@ -1,5 +1,6 @@
 // Визуальные эффекты: дождь, плёночный шум, глитч.
 import { settings, onSettings } from './settings';
+import { LOWFX } from './util';
 
 interface Drop { x: number; y: number; l: number; v: number; a: number; }
 interface Splash { x: number; y: number; t: number; }
@@ -20,20 +21,28 @@ export class Weather {
     canvas.height = 540;
     this.ctx = canvas.getContext('2d')!;
     this.ctx.setTransform(0.5, 0, 0, 0.5, 0, 0);
+  }
+  private running = false;
+  /** цикл отрисовки крутится только пока есть что рисовать */
+  private wake() {
+    if (this.running) return;
+    this.running = true;
+    this.last = 0;
     requestAnimationFrame((t) => this.loop(t));
   }
   set(mode: Weather['mode']) {
     this.mode = mode;
-    const k = document.getElementById('stage')?.classList.contains('lowfx') ? 0.5 : 1;
-    this.target = Math.round((mode === 'heavy' ? 520 : mode === 'light' ? 200 : mode === 'memory' ? 260 : 0) * k);
+    this.target = Math.round((mode === 'heavy' ? 520 : mode === 'light' ? 200 : mode === 'memory' ? 260 : 0) * (LOWFX ? 0.5 : 1));
+    this.wake();
   }
   flashLightning() {
     this.lightning = 1;
+    this.wake();
   }
   private spawn(): Drop {
     return { x: Math.random() * 2100 - 90, y: -Math.random() * 1100, l: 18 + Math.random() * 40, v: 1500 + Math.random() * 900, a: 0.08 + Math.random() * 0.22 };
   }
-  private lowfx = document.getElementById('stage')?.classList.contains('lowfx') ?? false;
+  private lowfx = LOWFX;
   private loop(t: number) {
     // на телефонах дождь рисуется 30 раз в секунду — глазу незаметно, работы вдвое меньше
     if (this.lowfx && t - this.last < 30 && this.last) { requestAnimationFrame((tt) => this.loop(tt)); return; }
@@ -46,6 +55,7 @@ export class Weather {
     const c = this.ctx;
     if (n === 0 && this.lightning <= 0) {
       if (!this.cleared) { c.clearRect(0, 0, 1920, 1080); this.cleared = true; this.canvas.style.display = 'none'; }
+      if (this.target === 0) { this.running = false; return; } // дождь кончился — цикл засыпает до следующего set()
       requestAnimationFrame((tt) => this.loop(tt));
       return;
     }
@@ -125,16 +135,20 @@ export class Glitch {
   private strength = 0;
   constructor(private canvas: HTMLCanvasElement, private world: HTMLElement, private stage: HTMLElement) {
     this.ctx = canvas.getContext('2d')!;
-    const tick = (t: number) => {
-      this.draw(t);
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
   }
+  private running = false;
   burst(strength = 0.7, ms = 450) {
     if (!settings.glitch) strength *= 0.25;
     this.strength = Math.max(this.strength, strength);
     this.until = Math.max(this.until, performance.now() + ms);
+    if (this.running) return;
+    this.running = true;
+    const tick = (t: number) => {
+      this.draw(t);
+      if (t < this.until) requestAnimationFrame(tick);
+      else { this.draw(this.until + 1); this.running = false; } // последний кадр гасит эффект
+    };
+    requestAnimationFrame(tick);
   }
   private draw(t: number) {
     const c = this.ctx;

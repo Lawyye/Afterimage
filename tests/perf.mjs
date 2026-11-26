@@ -64,6 +64,10 @@ async function measure(name, setup, ms = 7000) {
 
 const results = [];
 results.push(await measure('ch1-start', async () => { await page.evaluate(() => window.__game.jump('ch1')); await page.waitForTimeout(5200); }));
+results.push(await measure('memory-rain', async () => {
+  await page.evaluate(() => { const g = window.__game; g.jump('ch1.reading'); const s = g.stage; s.setBg('mira_apt', 0.1); s.setMemory(true); s.setRain('memory'); s.setBars(true); });
+  await page.waitForTimeout(2500);
+}));
 results.push(await measure('prologue-orpheus', async () => { await page.evaluate(() => window.__game.jump('prologue.call')); await page.waitForTimeout(800); }));
 console.log(label, JSON.stringify(results));
 const file = `${OUT}/results.json`;
