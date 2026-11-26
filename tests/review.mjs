@@ -134,6 +134,25 @@ ok(terms.includes('Послеобраз') && !terms.includes('Ретушь'), '�
 await page.locator('.panel .close').tap();
 await page.waitForTimeout(300);
 
+// 12. сохранение со старой версии сценария: глава начинается заново, решения и находки переносятся
+await page.evaluate(() => window.__game.jump('ch2', { chapter: 2, knows_leo: true, trust_orpheus: 2 }));
+await page.waitForTimeout(6000);
+await page.evaluate(() => { const d = window.__game.dialogue; if (d.typing) d.advance(); });
+await page.waitForTimeout(300);
+await page.evaluate(() => { window.__game.save('s5'); const k = 'afterimage.v1.save.s5'; const d = JSON.parse(localStorage.getItem(k)); d.storyHash = 'old-version'; localStorage.setItem(k, JSON.stringify(d)); });
+await page.evaluate(() => window.__game.load('s5'));
+await page.waitForTimeout(800);
+ok(await page.locator('.toast', { hasText: 'Сохранение из прошлой версии' }).count() === 1, 'нет сообщения о старом сохранении');
+await page.waitForTimeout(5000);
+const mig = await page.evaluate(() => ({ ch: window.__game.story.variablesState.$('chapter'), leo: window.__game.story.variablesState.$('knows_leo'), t: window.__game.story.variablesState.$('trust_orpheus') }));
+ok(mig.ch === 2 && mig.leo === true && mig.t === 2, 'старое сохранение потеряло решения: ' + JSON.stringify(mig));
+await page.evaluate(() => { const d = window.__game.dialogue; if (d.typing) d.advance(); });
+await page.waitForTimeout(300);
+const tm = await page.locator('.dlg .text').textContent();
+for (let i = 0; i < 2; i++) { await page.evaluate(() => { const d = window.__game.dialogue; if (d.typing) d.advance(); d.advance(); }); await page.waitForTimeout(600); }
+ok((await page.locator('.dlg .text').textContent()) !== tm || await page.locator('.choices .choice').count() > 0, 'после загрузки старого сохранения игра не идёт дальше');
+await page.evaluate(() => localStorage.removeItem('afterimage.v1.save.s5'));
+
 // 7. уведомлений одновременно не больше трёх
 await page.evaluate(() => { for (let i = 0; i < 6; i++) window.__game.toast('ev', 'Тест', 'уведомление ' + i); });
 ok(await page.locator('.toasts .toast').count() <= 3, 'уведомлений больше трёх');

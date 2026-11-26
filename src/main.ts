@@ -17,6 +17,17 @@ function preload(urls: string[], onProgress: (k: number) => void): Promise<void>
     img.src = u;
   }))).then(() => undefined);
 }
+/** Догрузка остального в фоне, по несколько картинок, когда браузер свободен — без рывков и без ожидания на старте */
+function preloadIdle(urls: string[]) {
+  const queue = [...urls];
+  const idle = (cb: () => void) => ((window as unknown as { requestIdleCallback?: (f: () => void, o?: object) => void }).requestIdleCallback ?? ((f: () => void) => setTimeout(f, 50)))(cb, { timeout: 500 });
+  const next = () => {
+    const batch = queue.splice(0, 4);
+    if (!batch.length) return;
+    Promise.all(batch.map((u) => new Promise<void>((res) => { const i = new Image(); i.onload = i.onerror = () => res(); i.src = u; }))).then(() => idle(next));
+  };
+  idle(next);
+}
 
 import { toggleFullscreen } from './ui/fullscreen';
 
@@ -52,14 +63,15 @@ async function main() {
   setupAndroidBridge(game);
   (window as unknown as { __game: Game }).__game = game;
   (window as unknown as { __ui: unknown }).__ui = { openCCTV, openBoard, openDoc, definePortrait };
-  const urls = [...BGS.map(bgUrl), ...allAssetUrls()];
-  const loading = preload(urls, (k) => {
+  // на старте ждём только фоны; персонажи догружаются в фоне (портрет и так появляется только после декодирования)
+  const loading = preload(BGS.map(bgUrl), (k) => {
     const el = document.querySelector('.boot .load');
     if (el) el.textContent = k < 1 ? `ЗАГРУЗКА ${Math.round(k * 100)}%` : '';
   });
   await boot();
   await loading;
   game.title();
+  preloadIdle(allAssetUrls());
 }
 void main();
 

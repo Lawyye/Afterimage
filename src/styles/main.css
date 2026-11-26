@@ -813,3 +813,15 @@ button:focus:not(:focus-visible) { outline: none; }
 .pt-bodyimg { transition: opacity .32s ease; }
 /* неговорящий персонаж в тёмной одежде не должен сливаться с ночным фоном */
 .pt.pt-body.dim { filter: brightness(.74) saturate(.8); opacity: .95; }
+
+/* подсказки по управлению (показываются один раз) */
+.tip { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); z-index: 6; max-width: 900px; padding: 16px 26px; text-align: center;
+  font: 400 21px/1.5 var(--f-text); color: var(--text); background: rgba(6,8,9,.92); border: 1px solid rgba(240,179,90,.45); box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  animation: tipIn .45s ease both; pointer-events: none; }
+.tip b { color: var(--amber); font-weight: 600; }
+.tip.out { animation: tipOut .45s ease forwards; }
+@keyframes tipIn { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes tipOut { to { opacity: 0; transform: translate(-50%, -10px); } }
+.compact .tip { top: 86px; font-size: 22px; max-width: 900px; }
+.tip.tip-investigate { top: auto; bottom: 40px; white-space: nowrap; max-width: none; }
+.compact .tip.tip-investigate { top: auto; bottom: 22px; }

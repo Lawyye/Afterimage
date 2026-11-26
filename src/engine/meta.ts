@@ -22,6 +22,7 @@ export interface SaveData {
   examined: string[];
   unread: string[];
   runChron: Record<string, Record<string, unknown>>;
+  storyHash?: string; // версия сценария, с которой сделано сохранение
 }
 
 interface Meta {
@@ -31,6 +32,7 @@ interface Meta {
   runs: number;
   lastSlot: string | null;
   art: string[]; // открытое в галерее: bg:<id>, pt:<id>:<expr>
+  tips?: string[]; // показанные подсказки по управлению
 }
 
 const meta: Meta = Object.assign({ endings: [], chron: {}, seen: [], runs: 0, lastSlot: null, art: [] }, Storage2.read<Partial<Meta>>('meta', {}));
@@ -59,6 +61,8 @@ export const Meta = {
   setLast(slot: string) { meta.lastSlot = slot; persist(); },
   seeArt(key: string) { if (!artSet.has(key)) { artSet.add(key); dirty = true; } },
   hasArt(key: string) { return artSet.has(key); },
+  /** Подсказку показываем один раз за всё время: true — если её ещё не было (и она отмечается показанной) */
+  firstTip(key: string) { const t = (meta.tips ??= []); if (t.includes(key)) return false; t.push(key); persist(); return true; },
   flush: persist,
 };
 

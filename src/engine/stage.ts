@@ -105,8 +105,9 @@ export function allAssetUrls(): string[] {
     for (const pose of ['', ...Object.keys(m.poses ?? {})]) {
       const pre = `assets/portraits/${id}${pose ? '@' + pose : ''}`;
       for (const [e, f] of Object.entries(exprsOf(id, pose))) {
-        urls.push(asset(`${pre}_${e}.webp`));
+        // у персонажей с телом в игре нужна только голова; полный бюст — для журнала и галереи, его не грузим заранее
         if (!pose && BODIES[id]) urls.push(asset(`${pre}_${e}_head.webp`));
+        else urls.push(asset(`${pre}_${e}.webp`));
         if (f.talk) urls.push(asset(`${pre}_${e}_talk.webp`));
         if (f.blink) urls.push(asset(`${pre}_${e}_blink.webp`));
       }

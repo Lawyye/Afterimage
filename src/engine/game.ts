@@ -64,12 +64,14 @@ export class Game implements GameApi {
   private autosavePending = false;
   private chapterCheckpoint = false;
   private history: Snapshot[] = []; // снимки для «Назад»
+  private storyHash = '';
   private busy = false; // блокирующие оверлеи
   private suppressToasts = false;
   private varNames: string[] = [];
 
   constructor(json: unknown) {
     this.story = new Story(json as never);
+    this.storyHash = hash(JSON.stringify(json));
     this.story.onError = (msg: string) => console.error('[ink]', msg);
     this.dialogue = new Dialogue(this.ui, this.stage);
     this.choices = new ChoiceUI(this.ui);
@@ -133,6 +135,15 @@ export class Game implements GameApi {
     rel('trust_orpheus', 'ОРФЕЙ');
   }
 
+  /** Подсказка по управлению (один раз за всё время), сверху по центру; уходит сама или по касанию */
+  private tip(key: string, html: string, ms = 9000) {
+    if (!Meta.firstTip(key)) return;
+    this.ui.querySelectorAll('.tip').forEach((o) => o.remove());
+    const t = el('div', 'tip tip-' + key, html);
+    this.ui.appendChild(t);
+    const off = () => { t.classList.add('out'); setTimeout(() => t.remove(), 500); };
+    setTimeout(off, ms);
+  }
   toast(kind: 'ev' | 'rel' | 'bad' | 'ded', title: string, text: string, ic?: string) {
     const t = el('div', 'toast' + (kind === 'ev' ? '' : ' ' + kind));
     const glyph = ic === 'up' ? '▲' : ic === 'down' ? '▼' : '';
@@ -160,7 +171,6 @@ export class Game implements GameApi {
     if (b === 'board') openBoard(false);
     if (b === 'log') openLog();
     if (b === 'menu') togglePause();
-    if (b === 'fs') void toggleFullscreen().then((err) => err && this.toast('bad', 'Полный экран', err));
   }
   private updateHud() {
     (this.hud.querySelector('.clock .t') as HTMLElement).textContent = this.clock || '--:--';
@@ -268,7 +278,31 @@ export class Game implements GameApi {
     const d = Saves.read(slot);
     if (!d) return;
     this.history = [];
+    if (d.storyHash !== this.storyHash) { this.migrate(d); return; }
     this.restore(d, false);
+  }
+  /** Сохранение со старой версии сценария: позиция в тексте уже не совпадает, поэтому глава начинается
+   * заново, а все решения, улики, отношения и найденное переносятся. */
+  private migrate(d: SaveData) {
+    const token = this.beginRun();
+    const vars: Record<string, unknown> = {};
+    this.suppressToasts = true;
+    try {
+      try { this.story.state.LoadJson(d.ink); for (const n of this.varNames) vars[n] = this.story.variablesState.$(n); } catch { /* повреждено — начнём с чистого листа */ }
+      this.story.ResetState();
+      for (const [k, v] of Object.entries(vars)) if (v !== null && v !== undefined) { try { this.story.variablesState.$(k, v as never); } catch { /* переменной больше нет */ } }
+      const ch = (vars.chapter as number) ?? d.chapter ?? 0;
+      this.story.ChoosePathString(ch <= 0 ? 'prologue' : `ch${ch}`);
+    } finally { this.suppressToasts = false; }
+    this.log = d.log ?? [];
+    this.unread = new Set(d.unread ?? []);
+    this.examined = new Set(d.examined ?? []);
+    this.runChron = d.runChron ?? {};
+    this.stage.reset();
+    this.dialogue.hide();
+    this.updateHud();
+    this.toast('ev', 'Сохранение из прошлой версии', 'Текст игры обновился, поэтому глава начнётся заново. Все решения и находки сохранены.');
+    void this.run(token);
   }
   /** Восстановить состояние из сохранения или снимка «Назад» (quiet — без уведомления, текст сразу целиком) */
   private restore(d: Snapshot, quiet: boolean) {
@@ -320,7 +354,7 @@ export class Game implements GameApi {
       ink: this.story.state.toJson(), stage: this.stage.snapshot(), music: audio.currentMusic, amb: audio.currentAmb, intensity: audio.intensity,
       current: this.atChoices ? { kind: 'choices' } : { kind: 'line', line: this.lastLine! },
       log: this.log.slice(-200), examined: [...this.examined], unread: [...this.unread], runChron: JSON.parse(JSON.stringify(this.runChron)),
-      last: this.lastLine,
+      last: this.lastLine, storyHash: this.storyHash,
     };
   }
   private pushHistory(timer = 0) {
@@ -418,6 +452,12 @@ export class Game implements GameApi {
     this.lastLine = line;
     const h = hash(line.text);
     const seen = Meta.isSeen(h);
+    if (wait && this.chapter === 0) {
+      const touch = matchMedia('(pointer: coarse)').matches;
+      this.tip('controls', touch
+        ? '<b>Касание в любом месте</b> — читать дальше<br><b>◂ Назад</b> — вернуть реплику · <b>Журнал</b> — улики, люди и термины'
+        : '<b>Клик, Пробел или Enter</b> — читать дальше<br><b>Backspace</b> — назад · <b>J</b> — журнал · <b>L</b> — лог · <b>Esc</b> — меню');
+    }
     if (wait) {
       this.pushHistory();
       this.log.push({ who: sp, name: line.name, text: line.text });
@@ -573,6 +613,7 @@ export class Game implements GameApi {
     this.stage.mouth(false);
     let idx: number;
     if (parsed.some((c) => c.kind === 'hotspot')) {
+      this.tip('investigate', matchMedia('(pointer: coarse)').matches ? '<b>Осмотр:</b> касайтесь светящихся точек, чтобы найти улики' : '<b>Осмотр:</b> нажимайте на светящиеся точки, чтобы найти улики', 9000);
       this.dialogue.hide();
       this.stage.setSpeaker(null);
       idx = await this.investigation.present(parsed, this.stage.bgId ?? '', this.examined, token, (this.story.variablesState.$('inv_limit') as number) || 0);
