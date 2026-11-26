@@ -147,7 +147,11 @@ npm run trailer   # записать трейлер в dist/Afterimage-trailer.m
 (Whisper small) — средняя дословность около 0.96. Озвучка встроена в файл игры (≈3 МБ), ключ фразы — хеш «роль:текст»,
 поэтому после правки текста реплики её нужно переозвучить (`npm run voice`); без файла реплика просто идёт без голоса.
 
-Голоса: Piper `ru_RU-dmitri-medium` и `ru_RU-denis-medium`, датасеты OHF-Voice, лицензия CC0.
+Голоса: ОРФЕЙ и объявления терминалов — Piper `ru_RU-dmitri-medium` и `ru_RU-denis-medium` (датасеты OHF-Voice, лицензия CC0).
+Диктор вступления, трейлера и заставок глав — ElevenLabs, голос «Maxim — Deep Russian Narrator», модель eleven_v4
+(бесплатный тариф ElevenLabs: некоммерческое использование с упоминанием ElevenLabs). Тексты для синтеза с ударениями —
+`art-src/voice/narrator/prompts.json`, дубли — `art-src/voice/narrator/takes/`; генератор берёт самый разборчивый,
+а для фраз без записи синтезирует голос Piper.
 
 ### Ростовые персонажи и позы
 
