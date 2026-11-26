@@ -41,6 +41,25 @@ ROLES = {
 }
 TAIL = 'adelay=60,apad=pad_dur=0.35,loudnorm=I=-17:TP=-1.5:LRA=7,aresample=32000'
 
+# Диктор записан в ElevenLabs (голос Maxim, art-src/voice/narrator/prompts.json): дубли лежат в
+# art-src/voice/narrator/takes/<key>.<a|b|…>.mp3, генератор берёт самый разборчивый и слегка обрабатывает
+# (лёгкий зал и выравнивание громкости). Если записи для фразы нет — она синтезируется Piper, как раньше.
+EXTERNAL = {'narrator': dict(dir=os.path.join(ROOT, 'art-src/voice/narrator/takes'), fx=(
+    'highpass=f=50,equalizer=f=140:t=q:w=1.2:g=1.5,aecho=0.8:0.3:55|110:0.1|0.05,'
+    'acompressor=threshold=-20dB:ratio=2:attack=10:release=150'))}
+
+
+def external_takes(role, key):
+    ext = EXTERNAL.get(role)
+    if not ext or not os.path.isdir(ext['dir']):
+        return []
+    return sorted(os.path.join(ext['dir'], f) for f in os.listdir(ext['dir']) if f.startswith(key + '.') and f.endswith('.mp3'))
+
+
+def process_external(role, src, out_mp3):
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', src, '-af', EXTERNAL[role]['fx'] + ',' + TAIL,
+                    '-ac', '1', '-c:a', 'libmp3lame', '-b:a', '64k', out_mp3], check=True)
+
 # произношение: [[фонемы espeak]] там, где словарь ошибается
 LEXICON = [
     (r'\bПорт-Ирис\b', '[[pˈort ˈirʲɪs]]'), (r'\bПорт-Ириса\b', '[[pˈort ˈirʲɪsə]]'),
@@ -154,10 +173,29 @@ def main():
     for it in items:
         spoken = normalize(it['text'])
         cfg = ROLES[it['role']]
-        stamp = hashlib.sha1(json.dumps([spoken, cfg, TAIL, TAKES[it['role']]], ensure_ascii=False).encode()).hexdigest()[:16]
+        takes = external_takes(it['role'], it['key'])
+        ext_sig = [(os.path.basename(t), os.path.getsize(t)) for t in takes]
+        stamp = hashlib.sha1(json.dumps([spoken, cfg, TAIL, TAKES[it['role']], ext_sig, EXTERNAL.get(it['role'], {}).get('fx') if takes else None], ensure_ascii=False).encode()).hexdigest()[:16]
         path = os.path.join(OUT, it['key'] + '.mp3')
         st = stamps.get(it['key'])
-        if force or not isinstance(st, dict) or st.get('stamp') != stamp or not os.path.exists(path):
+        if takes and (force or not isinstance(st, dict) or st.get('stamp') != stamp or not os.path.exists(path)):
+            # готовые записи: выбираем самый разборчивый дубль
+            best = None
+            for t in takes:
+                tmp = path + '.ext.mp3'
+                process_external(it['role'], t, tmp)
+                sc, got = score(spoken, tmp)
+                if best is None or sc > best[0]:
+                    if best:
+                        os.unlink(best[1])
+                    best = (sc, tmp + '.best', got, os.path.basename(t))
+                    os.replace(tmp, best[1])
+                else:
+                    os.unlink(tmp)
+            os.replace(best[1], path)
+            stamps[it['key']] = dict(stamp=stamp, score=round(best[0], 3), got=best[2], source=best[3])
+            made += 1
+        elif not takes and (force or not isinstance(st, dict) or st.get('stamp') != stamp or not os.path.exists(path)):
             best = None
             for take in range(TAKES[it['role']]):
                 tmp = path + f'.take{take}.mp3'

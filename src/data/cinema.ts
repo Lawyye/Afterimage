@@ -43,7 +43,7 @@ export const INTRO: Shot[] = [
   { bg: 'mnema', cam: [2, -1, 1.1, -2, 1, 1.04], rain: 'light', fade: 1600, tail: 900,
     vo: [N('Шесть лет город верит в одно правило.'), N('Шесть лет оно не ошибалось.')] },
   { bg: 'black', card: 'МЁРТВЫЕ НЕ ЛГУТ', fade: 900, tail: 1600, sfx: ['stinger'], fx: 'glitch', rain: 'off',
-    vo: [{ role: 'sys', text: 'Мёртвые не лгут.' }] },
+    vo: [N('Мёртвые не лгут.')] },
 ];
 
 /** Трейлер (меню «Трейлер» на титульном экране) */
@@ -60,7 +60,7 @@ export const TRAILER: Shot[] = [
   { bg: 'taxi', cam: [0, 0, 1.06, 0, 0, 1.16], fade: 300, dur: 1900, rain: 'heavy', card: 'ОДНА НОЧЬ', sfx: ['whoosh'] },
   { bg: 'canal', cam: [3, 0, 1.16, -3, 0, 1.08], fade: 300, dur: 2200, card: 'КАЖДОЕ РЕШЕНИЕ НЕОБРАТИМО', sfx: ['whoosh'], music: ['confront', 0.5] },
   { bg: 'courtyard', cam: [0, 0, 1.3, 0, 0, 1.12], fade: 200, dur: 1500, fx: 'flash', sfx: ['heartbeat'] },
-  { bg: 'black', card: 'МЁРТВЫЕ НЕ ЛГУТ', fade: 300, tail: 900, sfx: ['stinger'], fx: 'glitch', rain: 'off', vo: [{ role: 'sys', text: 'Мёртвые не лгут.' }] },
+  { bg: 'black', card: 'МЁРТВЫЕ НЕ ЛГУТ', fade: 300, tail: 900, sfx: ['stinger'], fx: 'glitch', rain: 'off', vo: [N('Мёртвые не лгут.')] },
   { bg: 'black', card: 'AFTERIMAGE', kicker: 'ИНТЕРАКТИВНЫЙ ДЕТЕКТИВ', fade: 700, dur: 4200, sfx: ['boom'], music: ['title', 0.3] },
 ];
 
