@@ -32,6 +32,7 @@ function preloadIdle(urls: string[]) {
 import { toggleFullscreen } from './ui/fullscreen';
 
 import { audio } from './engine/audio';
+import { settings } from './engine/settings';
 import { pauseOpen } from './ui/menus';
 import { panelOpen } from './ui/panels';
 import { docOpen } from './ui/docs';
@@ -62,7 +63,7 @@ async function main() {
   const game = new Game(storyJson);
   setupAndroidBridge(game);
   (window as unknown as { __game: Game }).__game = game;
-  (window as unknown as { __ui: unknown }).__ui = { openCCTV, openBoard, openDoc, definePortrait };
+  (window as unknown as { __ui: unknown }).__ui = { openCCTV, openBoard, openDoc, definePortrait, audio, settings };
   // на старте ждём только фоны; персонажи догружаются в фоне (портрет и так появляется только после декодирования)
   const loading = preload(BGS.map(bgUrl), (k) => {
     const el = document.querySelector('.boot .load');

@@ -7,6 +7,10 @@ import { bgUrl, setAmbient } from '../engine/stage';
 import { api } from './api';
 import { openSaves, openSettings, openChronicle, openEndings, openJournal, openChapters, openGallery, hasChapterSaves, confirm, panelOpen } from './panels';
 import { toggleFullscreen, fullscreenSupported } from './fullscreen';
+import { playCinema } from './cinema';
+import { INTRO, TRAILER, chapterVo } from '../data/cinema';
+import { voKey, hasVo, voDuration } from '../engine/voice';
+import { settings } from '../engine/settings';
 
 const ui = () => document.getElementById('ui')!;
 
@@ -41,6 +45,7 @@ export function showTitle(onNew: () => void, onContinue: (slot: string) => void)
   item('Хроника решений', '', () => openChronicle());
   item('Концовки', `${Meta.data.endings.length}/${ENDINGS.length}`, () => openEndings());
   item('Галерея', '', () => openGallery());
+  item('Трейлер', '', () => { void playTrailer(); });
   item('Настройки', '', () => openSettings());
   if (fullscreenSupported() && !/AfterimageApp/.test(navigator.userAgent)) item('Полный экран', '', async () => { const err = await toggleFullscreen(); if (err) api.g.toast('bad', 'Полный экран', err); });
   document.getElementById('stage')!.appendChild(root);
@@ -97,6 +102,10 @@ export async function chapterCard(text: string, token: Token) {
   ui().appendChild(c);
   requestAnimationFrame(() => c.classList.add('on'));
   audio.sfx('chapter');
+  // диктор читает номер и название главы; заставка держится, пока он не договорит
+  const vo = voKey('narrator', chapterVo(n, title ?? ''));
+  const voiced = settings.vo > 0 && hasVo(vo);
+  if (voiced) setTimeout(() => { if (!token.cancelled && c.isConnected) void audio.playVo(vo); }, 700);
   // касание или любая клавиша — пропустить заставку главы
   let skip: () => void = () => undefined;
   const skipped = new Promise<void>((r) => (skip = r));
@@ -104,13 +113,14 @@ export async function chapterCard(text: string, token: Token) {
   const view = document.getElementById('viewport')!;
   setTimeout(() => { view.addEventListener('pointerdown', skip); window.addEventListener('keydown', onKey); }, 350);
   try {
-    await Promise.race([sleep(3600, token), skipped]);
+    await Promise.race([sleep(voiced ? Math.max(3600, voDuration(vo) + 1300) : 3600, token), skipped]);
     c.classList.remove('on');
     await Promise.race([sleep(1000, token), skipped.then(() => sleep(250, token))]);
   } finally {
     view.removeEventListener('pointerdown', skip);
     window.removeEventListener('keydown', onKey);
     c.remove();
+    if (voiced) audio.stopVo(0.3);
   }
 }
 
@@ -131,60 +141,22 @@ export function endingCard(id: string, stats: string): Promise<void> {
   });
 }
 
-/** Вступительная заставка */
+/** Вступительная кат-сцена (перед прологом), озвученная */
 export async function intro(token: Token) {
-  const root = el('div', 'intro');
-  const skip = el('button', 'skip', 'ПРОПУСТИТЬ  ⏎');
-  root.appendChild(skip);
-  document.getElementById('overlay')!.appendChild(root);
-  let skipped = false;
-  const doSkip = () => { skipped = true; };
-  skip.addEventListener('click', doSkip);
-  const onKey = (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); doSkip(); } };
-  window.addEventListener('keydown', onKey, true);
-  audio.music('title', 0.3, 2);
-  audio.ambience('rain_out', 3);
-  const scenes: [string, string, number][] = [
-    ['key_art', 'Порт-Ирис. Город, в котором никогда не прекращается дождь.', 5200],
-    ['courtyard', 'Каждый житель старше шестнадцати носит за ухом <b>«Свидетеля»</b>. Имплант помнит последние шесть часов — всё, что ты видел, слышал, чувствовал.', 6800],
-    ['hall', 'После смерти запись замирает. Её называют <b>послеобразом</b>. Чтецы Отдела посмертных показаний проживают последние минуты мёртвых — и называют убийцу.', 7400],
-    ['mnema', 'Шесть лет город верит в одно правило. Шесть лет оно не ошибалось.', 5600],
-  ];
-  const wait = async (ms: number) => {
-    const t0 = performance.now();
-    while (performance.now() - t0 < ms && !skipped && !token.cancelled) await sleep(80);
-  };
+  await playCinema(INTRO, token);
+}
+
+/** Трейлер с титульного экрана; по окончании титульный экран снова звучит как обычно */
+export async function playTrailer() {
+  const title = document.querySelector('.title-screen') as HTMLElement | null;
+  const token = new Token();
+  title?.classList.add('behind');
   try {
-    for (const [bg, text, ms] of scenes) {
-      if (skipped || token.cancelled) break;
-      const s = el('div', 'scene');
-      s.innerHTML = `<div class="bg on" style="inset:0"><div class="drift-wrap"><img class="base" src="${bgUrl(bg)}" alt=""></div></div><div class="txt">${text}</div>`;
-      root.appendChild(s);
-      await sleep(50);
-      s.classList.add('on');
-      await wait(ms);
-      s.classList.remove('on');
-      setTimeout(() => s.remove(), 1700);
-    }
-    if (!skipped && !token.cancelled) {
-      await wait(1200);
-      const big = el('div', 'scene');
-      big.innerHTML = `<div class="big">МЁРТВЫЕ НЕ ЛГУТ</div>`;
-      root.appendChild(big);
-      await sleep(50);
-      big.classList.add('on');
-      audio.sfx('stinger');
-      await wait(3200);
-      audio.sfx('glitch');
-      document.getElementById('stage')!.classList.add('rgb-split');
-      await wait(260);
-      document.getElementById('stage')!.classList.remove('rgb-split');
-      big.classList.remove('on');
-      await wait(1500);
-    }
+    await playCinema(TRAILER, token);
   } finally {
-    window.removeEventListener('keydown', onKey, true);
-    root.remove();
+    title?.classList.remove('behind');
+    audio.music('title', 0.5, 2);
+    audio.ambience('rain_in', 2);
   }
 }
 

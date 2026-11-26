@@ -52,7 +52,7 @@ for (const vp of [{ name: '1280x720', w: 1280, h: 720, touch: false }, { name: '
   // новая игра → пролог
   await press(page.locator('.menu-btn', { hasText: 'Новая игра' }));
   await page.waitForTimeout(600);
-  if (await page.locator('.intro .skip').count()) await press('.intro .skip');
+  if (await page.locator('.cine-skip').count()) await press('.cine-skip');
   await page.waitForTimeout(6000);
 
   // досье: в начале известна только героиня, остальные — «?»

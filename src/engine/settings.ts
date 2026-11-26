@@ -6,6 +6,7 @@ export interface Settings {
   ambience: number;
   sfx: number;
   voice: number; // «голосовые» блипы при печати текста
+  vo: number; // озвучка: ОРФЕЙ, терминалы, кат-сцены
   textSpeed: number; // символов в секунду, 0 = мгновенно
   autoDelay: number; // секунды паузы в авто-режиме
   fx: number; // интенсивность CRT/шума 0..1
@@ -26,6 +27,7 @@ const defaults: Settings = {
   ambience: 0.75,
   sfx: 0.8,
   voice: 0.35,
+  vo: 0.9,
   textSpeed: 55,
   autoDelay: 1.6,
   fx: 0.7,

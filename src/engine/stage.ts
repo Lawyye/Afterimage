@@ -69,6 +69,7 @@ export const portraitUrl = (id: string, expr: string, v = '', pose = '') =>
 export const bgUrl = (id: string) => asset(`assets/bg/${id}.webp`);
 /** Размытая подсветка текущего фона в боковых полях вытянутых экранов (20:9 и т. п.) */
 let ambientUrl: string | null = null;
+export const getAmbient = (): string | null => ambientUrl;
 export function setAmbient(url: string | null) {
   if (url === ambientUrl) return;
   ambientUrl = url;

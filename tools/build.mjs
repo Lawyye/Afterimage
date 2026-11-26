@@ -37,6 +37,19 @@ const storyPlugin = {
     });
   },
 };
+// озвучка встроена во все сборки: в APK страница открыта как file://, и WebView не отдаёт fetch() к соседним файлам
+const voicePlugin = {
+  name: 'voice',
+  setup(b) {
+    b.onResolve({ filter: /^virtual:voice$/ }, () => ({ path: 'voice', namespace: 'voice' }));
+    b.onLoad({ filter: /.*/, namespace: 'voice' }, () => {
+      const dir = join(root, 'assets', 'voice');
+      const map = {};
+      if (existsSync(dir)) for (const f of readdirSync(dir)) if (f.endsWith('.mp3')) map[f.slice(0, -4)] = 'data:audio/mpeg;base64,' + readFileSync(join(dir, f)).toString('base64');
+      return { contents: `export default ${JSON.stringify(map)};`, loader: 'js', watchDirs: [dir] };
+    });
+  },
+};
 const assetsPlugin = (inline) => ({
   name: 'assets',
   setup(b) {
@@ -64,7 +77,7 @@ const base = (inline) => ({
   outdir: join(root, 'build-tmp'),
   write: false,
   loader: { '.woff2': 'dataurl' },
-  plugins: [storyPlugin, assetsPlugin(inline)],
+  plugins: [storyPlugin, voicePlugin, assetsPlugin(inline)],
   logLevel: 'warning',
   legalComments: 'none',
 });

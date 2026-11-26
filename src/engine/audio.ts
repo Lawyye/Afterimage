@@ -1,5 +1,6 @@
 // Процедурный звук. Все звуки и музыка синтезируются в реальном времени через
-// Web Audio API — никаких внешних аудиофайлов.
+// Web Audio API. Единственные записанные звуки — озвучка (assets/voice, см. voice.ts).
+import { voUrl } from './voice';
 import { settings, onSettings } from './settings';
 
 type Ctx = AudioContext;
@@ -32,6 +33,7 @@ export class AudioEngine {
   ambBus!: GainNode;
   sfxBus!: GainNode;
   voiceBus!: GainNode;
+  voBus!: GainNode;
   reverb!: ConvolverNode;
   reverbIn!: GainNode;
   bigReverb!: ConvolverNode;
@@ -75,6 +77,8 @@ export class AudioEngine {
     this.sfxBus.connect(this.master);
     this.voiceBus = ctx.createGain();
     this.voiceBus.connect(this.master);
+    this.voBus = ctx.createGain();
+    this.voBus.connect(this.master);
     this.noise = this.makeNoise('white', 4);
     this.pink = this.makeNoise('pink', 6);
     this.brown = this.makeNoise('brown', 6);
@@ -110,6 +114,66 @@ export class AudioEngine {
     this.ambBus.gain.setTargetAtTime(settings.ambience * 0.8, t, 0.05);
     this.sfxBus.gain.setTargetAtTime(settings.sfx * 0.8, t, 0.05);
     this.voiceBus.gain.setTargetAtTime(settings.voice * 0.5, t, 0.05);
+    this.voBus.gain.setTargetAtTime(settings.vo * 1.1, t, 0.05);
+  }
+
+  // ---------- озвучка ----------
+  private voBuffers = new Map<string, Promise<AudioBuffer | null>>();
+  private vo: { src: AudioBufferSourceNode; g: GainNode; key: string; ends: number } | null = null;
+  /** декодировать заранее (первый показ без задержки) */
+  loadVo(key: string): Promise<AudioBuffer | null> {
+    let p = this.voBuffers.get(key);
+    if (!p) {
+      const url = voUrl(key);
+      const ctx = this.ctx;
+      p = !url || !ctx ? Promise.resolve(null) : fetch(url).then((r) => r.arrayBuffer())
+        .then((b) => new Promise<AudioBuffer>((res, rej) => ctx.decodeAudioData(b, res, rej)))
+        .catch(() => null);
+      if (url && ctx) this.voBuffers.set(key, p);
+      // кэш небольшой: реплики ОРФЕЯ короткие, держим последние 24
+      if (this.voBuffers.size > 24) this.voBuffers.delete(this.voBuffers.keys().next().value as string);
+    }
+    return p;
+  }
+  /** Проиграть фразу; промис — когда она закончится (или прервётся). Музыка на это время приглушается. */
+  async playVo(key: string, opts: { duck?: boolean } = {}): Promise<void> {
+    if (!this.ctx || settings.vo <= 0 || this.muted) return;
+    this.stopVo();
+    const want = Symbol();
+    this.voWant = want;
+    const buf = await this.loadVo(key);
+    if (!buf || this.voWant !== want || !this.ctx) return;
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    src.connect(g).connect(this.voBus);
+    const t = ctx.currentTime + 0.02;
+    src.start(t);
+    const cur = { src, g, key, ends: performance.now() + buf.duration * 1000 + 20 };
+    this.vo = cur;
+    if (opts.duck !== false) this.duck(0.5, buf.duration + 0.2);
+    await new Promise<void>((res) => { src.onended = () => res(); });
+    if (this.vo === cur) this.vo = null;
+  }
+  private voWant: symbol | null = null;
+  stopVo(fade = 0.08) {
+    this.voWant = null;
+    const v = this.vo;
+    if (!v || !this.ctx) return;
+    this.vo = null;
+    const t = this.ctx.currentTime;
+    v.g.gain.setTargetAtTime(0, t, fade / 3);
+    try { v.src.stop(t + fade); } catch { /* уже остановлен */ }
+    this.duckGain.gain.cancelScheduledValues(t);
+    this.duckGain.gain.setTargetAtTime(1, t, 0.4);
+  }
+  /** сколько ещё звучит текущая фраза, мс */
+  voRemaining(): number {
+    return this.vo ? Math.max(0, this.vo.ends - performance.now()) : 0;
+  }
+  get voPlaying() {
+    return !!this.vo || this.voWant !== null;
   }
 
   get now() {

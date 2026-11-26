@@ -27,7 +27,7 @@ await page.waitForTimeout(400);
 ok(!(await page.locator('.panel').count()), 'настройки не закрылись кнопкой «Назад»');
 await page.locator('.menu-btn', { hasText: 'Новая игра' }).tap();
 await page.waitForTimeout(800);
-if (await page.locator('.intro').count()) await page.locator('.intro .skip').tap();
+if (await page.locator('.cine').count()) await page.locator('.cine-skip').tap();
 await page.waitForTimeout(8500);
 const img = await page.evaluate(() => { const i = document.querySelector('#bg-layer .bg.on img'); return i ? [i.naturalWidth, i.src.split('/').slice(-3).join('/')] : null; });
 ok(img && img[0] === 1920, 'фон из ресурсов APK не загрузился: ' + JSON.stringify(img));

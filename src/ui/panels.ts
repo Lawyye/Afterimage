@@ -15,6 +15,7 @@ import { api, overlayRoot } from './api';
 import { openDoc } from './docs';
 import { portraitUrl, bgUrl, portraitExprs, isFullBody } from '../engine/stage';
 import { plainText } from '../engine/dialogue';
+import { lineVo } from '../engine/voice';
 import { toggleFullscreen, isFullscreen, fullscreenSupported } from './fullscreen';
 
 let current: { close: () => void } | null = null;
@@ -189,6 +190,15 @@ export function openLog() {
       const it = el('div', 'log-item' + (e.kind === 'choice' ? ' choice-made' : '') + (e.who === 'thought' ? ' thought' : ''));
       const name = e.kind === 'choice' ? 'ВЫБОР' : e.name ?? (ch?.name || '');
       it.innerHTML = `<div class="who" style="--c:${ch?.color ?? '#8b958f'}">${escapeHtml(name)}</div><div class="what">${escapeHtml(plainText(e.text))}</div>`;
+      // озвученную реплику можно переслушать
+      const vo = e.kind === 'choice' ? null : lineVo(e.who ?? null, e.text);
+      if (vo) {
+        const b = el('button', 'replay', '▶');
+        b.title = 'Переслушать';
+        b.setAttribute('aria-label', 'Переслушать реплику');
+        b.addEventListener('click', () => { void audio.playVo(vo); });
+        it.querySelector('.who')!.appendChild(b);
+      }
       list.appendChild(it);
     }
     if (!api.g.log.length) list.appendChild(el('div', 'empty', 'Пока пусто.'));
@@ -364,6 +374,7 @@ export function openSettings() {
       range('Музыка', 'Генеративный саундтрек', 'music', 0, 1, 0.05, pct);
       range('Атмосфера', 'Дождь, город, гул', 'ambience', 0, 1, 0.05, pct);
       range('Эффекты', 'Интерфейс и события', 'sfx', 0, 1, 0.05, pct);
+      range('Озвучка', 'ОРФЕЙ, терминалы, вступление и трейлер. 0 — выключить', 'vo', 0, 1, 0.05, pct);
       range('Голоса печати', 'Тихие звуки при наборе текста', 'voice', 0, 1, 0.05, pct);
     } else if (t === 't') {
       range('Скорость текста', '0 — мгновенно', 'textSpeed', 0, 120, 5, (v) => (v === 0 ? 'МГН.' : `${v} зн/с`));

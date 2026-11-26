@@ -94,7 +94,7 @@ for (const vp of VIEWPORTS) {
   // новая игра → пролог
   await press(page.locator('.menu-btn', { hasText: 'Новая игра' }));
   await page.waitForTimeout(800);
-  if (await page.locator('.intro').count()) await press('.intro .skip');
+  if (await page.locator('.cine').count()) await press('.cine-skip');
   await page.waitForTimeout(8500);
   const bg = await page.evaluate(() => {
     const img = document.querySelector('#bg-layer .bg.on img');

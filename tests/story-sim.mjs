@@ -67,6 +67,9 @@ const allKnots = new Set([...source.matchAll(/^===\s*(?:function\s+)?([a-z_0-9]+
 const flagsSeen = {};
 const chronSeen = new Set();
 let maxSteps = 0, totalLines = 0, runs = 0, deadEnds = 0;
+// VOICE_DUMP=файл.json — собрать все варианты реплик, которые озвучиваются (ОРФЕЙ и системные сообщения)
+const VOICE_RE = /^(orpheus|sys)(?:_)?(?:\/[a-z]+)?:\s*([\s\S]*)$/;
+const voiceLines = new Map();
 
 function playthrough(policy, seed) {
   let s = seed;
@@ -88,6 +91,10 @@ function playthrough(policy, seed) {
     if (story.canContinue) {
       const text = story.Continue();
       lines++;
+      {
+        const vm = VOICE_RE.exec(text.trim());
+        if (vm) { const k = vm[1] + ':' + vm[2].trim(); voiceLines.set(k, (voiceLines.get(k) ?? 0) + 1); }
+      }
       const path = story.state.currentPathString;
       if (path) knotsVisited.add(path.split('.')[0]);
       for (const t of story.currentTags ?? []) {
@@ -191,6 +198,20 @@ const unvisited = [...allKnots].filter((k) => !knotsVisited.has(k) && k !== 'vis
 if (unvisited.length) problems.push('Не посещены узлы: ' + unvisited.join(', '));
 // хроника: все варианты встречаются
 for (const ch of CHRONICLE) for (const row of ch.rows) for (const o of row.opts) if (!chronSeen.has(row.id + ':' + o.id)) problems.push(`Хроника: вариант «${o.text}» (${row.id}) ни разу не встретился`);
+if (process.env.VOICE_DUMP) {
+  const { writeFileSync } = await import('node:fs');
+  const out = [...voiceLines.entries()].map(([k, n]) => { const i = k.indexOf(':'); return { speaker: k.slice(0, i), text: k.slice(i + 1), n }; });
+  writeFileSync(process.env.VOICE_DUMP, JSON.stringify(out, null, 1));
+  console.log(`Озвучиваемых реплик: ${out.length} → ${process.env.VOICE_DUMP}`);
+}
+// озвучка не устарела: у каждой реплики ОРФЕЯ есть голос (после правки текста — npm run voice)
+{
+  const { readFileSync, existsSync } = await import('node:fs');
+  const idx = existsSync('assets/voice/index.json') ? JSON.parse(readFileSync('assets/voice/index.json', 'utf8')) : {};
+  const h = (str) => { let x = 2166136261; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 16777619); } return (x >>> 0).toString(36); };
+  const missing = [...voiceLines.keys()].filter((k) => k.startsWith('orpheus:') && /[А-Яа-яЁё]/.test(k) && !(h(k) in idx));
+  if (missing.length) problems.push(`Озвучка устарела: ${missing.length} реплик ОРФЕЯ без голоса — запустите npm run voice`);
+}
 const uniq = [...new Set(problems)];
 if (uniq.length) {
   console.log('\nПРОБЛЕМЫ (' + uniq.length + '):\n- ' + uniq.join('\n- '));

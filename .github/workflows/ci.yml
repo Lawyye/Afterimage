@@ -45,6 +45,7 @@ jobs:
       - run: node tests/features.mjs
       - run: node tests/ui.mjs
       - run: node tests/hotspots.mjs
+      - run: node tests/voice.mjs
       - run: node tests/e2e.mjs kind
       - name: Скриншоты при ошибке
         if: failure()

@@ -18,7 +18,10 @@
     "test:ui": "node tests/ui.mjs",
     "test:hotspots": "node tests/hotspots.mjs",
     "apk": "npm run build && bash tools/android/build.sh",
-    "test:android": "node tests/android-sim.mjs"
+    "test:android": "node tests/android-sim.mjs",
+    "voice": "VOICE_DUMP=.art-cache/tts/lines.json node tests/story-sim.mjs 3000 && node tools/voice/collect.mjs && python3 -I tools/voice/gen.py",
+    "trailer": "node tools/trailer/record.mjs",
+    "test:voice": "node tests/voice.mjs"
   },
   "repository": {
     "type": "git",

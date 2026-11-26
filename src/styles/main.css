@@ -346,6 +346,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cream)
 .log-item .what { font: 400 22px/1.5 var(--f-text); color: var(--text); }
 .log-item.choice-made .what { color: var(--amber); font-family: var(--f-mono); font-size: 19px; }
 .log-item.thought .what { font-style: italic; color: #b7c3c8; }
+.log-item .replay { margin-left: 12px; padding: 2px 10px; font: 400 14px var(--f-mono); color: var(--c, var(--muted)); border: 1px solid currentColor; border-radius: 3px; opacity: .7; vertical-align: 2px; }
+.log-item .replay:hover, .log-item .replay:focus-visible { opacity: 1; }
 
 /* documents */
 .doc-wrap { position: absolute; inset: 0; display: grid; place-items: center; }
@@ -841,3 +843,42 @@ button:focus:not(:focus-visible) { outline: none; }
 .compact .choice .past { font-size: 16px; }
 .bcard.hint { outline: 3px solid var(--amber); outline-offset: 4px; animation: hintpulse 1.4s ease-in-out infinite; }
 @keyframes hintpulse { 50% { outline-color: rgba(240,179,90,.25); } }
+
+/* ---------- кат-сцены: вступление и трейлер ---------- */
+.cine { position: absolute; inset: 0; z-index: 37; background: #000; overflow: hidden; opacity: 0; transition: opacity .6s ease; }
+.cine.on { opacity: 1; }
+.cine-layers, .cine-shot { position: absolute; inset: 0; overflow: hidden; }
+.cine-shot { opacity: 0; transition-property: opacity; transition-timing-function: ease; }
+.cine-shot.on { opacity: 1; }
+.cine-shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; will-change: transform; }
+.cine-shot.flicker img { animation: cineFlicker 2.6s steps(1) infinite; }
+@keyframes cineFlicker { 0%, 100% { filter: none; } 8% { filter: brightness(.55); } 10% { filter: none; } 47% { filter: brightness(.7); } 49% { filter: none; } }
+.cine-rain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.cine-vig { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,.78) 100%); }
+.cine-bar { position: absolute; left: 0; right: 0; height: 104px; background: #000; z-index: 2; }
+.cine-bar.t { top: 0; } .cine-bar.b { bottom: 0; }
+.cine-flash { position: absolute; inset: 0; z-index: 3; background: #dfe8ff; opacity: 0; pointer-events: none; }
+.cine-flash.go { animation: cineFlash .8s ease-out; }
+@keyframes cineFlash { 0% { opacity: .75; } 100% { opacity: 0; } }
+.cine.glitch .cine-layers { filter: saturate(1.7) contrast(1.35) hue-rotate(-14deg); transform: translateX(7px) skewX(-1.5deg); }
+.cine.glitch .cine-card .c { text-shadow: -5px 0 #ff2d55, 5px 0 #2de2ff; }
+.cine-card { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); z-index: 4; display: flex; flex-direction: column; align-items: center; text-align: center; opacity: 0; transition: opacity .9s ease; pointer-events: none; }
+.cine-card.on { opacity: 1; }
+.cine-card .k { font: 400 26px var(--f-mono); letter-spacing: .45em; color: rgba(236,231,220,.82); text-shadow: 0 0 20px #000; }
+.cine-card .k:not(:empty) + .c:not(:empty) { margin-top: 26px; }
+.cine-card .c { font: 900 92px var(--f-title); letter-spacing: .14em; color: var(--cream); text-shadow: 0 0 40px rgba(0,0,0,.85); }
+.cine-card.logo .c { font-size: 124px; letter-spacing: .3em; }
+.cine-card.logo .k { order: 2; }
+.cine-sub { position: absolute; left: 0; right: 0; bottom: 150px; z-index: 4; padding: 0 280px; text-align: center; font: 300 34px/1.55 var(--f-text); color: var(--cream); text-shadow: 0 0 26px #000, 0 0 8px #000, 0 2px 2px #000; opacity: 0; transition: opacity .45s ease; pointer-events: none; }
+.cine-sub.on { opacity: 1; }
+.cine-sub b { font-weight: 500; }
+.cine-skip { position: absolute; right: 60px; bottom: 34px; z-index: 5; padding: 12px 18px; font: 400 15px var(--f-mono); letter-spacing: .2em; color: var(--cream); opacity: .45; transition: opacity .3s; }
+.cine.show-skip .cine-skip, .cine-skip:hover, .cine-skip:focus-visible { opacity: 1; }
+.compact .cine-sub { bottom: 66px; padding: 0 70px; font-size: 27px; }
+.compact .cine-card .c { font-size: 60px; }
+.compact .cine-card .k { font-size: 19px; }
+.compact .cine-card.logo .c { font-size: 74px; }
+.compact .cine-bar { height: 44px; }
+.compact .cine-skip { right: 24px; bottom: 6px; font-size: 18px; }
+@media (prefers-reduced-motion: reduce) { .cine-shot.flicker img { animation: none; } }
+.title-screen.behind { visibility: hidden; }

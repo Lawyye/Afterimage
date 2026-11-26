@@ -1,0 +1,4 @@
+# озвучка (npm run voice): синтез речи и проверка разборчивости
+piper-tts
+num2words
+faster-whisper

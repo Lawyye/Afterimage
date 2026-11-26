@@ -62,7 +62,7 @@ while (steps < 3000 && !ended) {
     const q = (s) => document.querySelector(s);
     const g = window.__game;
     return {
-      ending: !!q('.ending-card'), intro: !!q('.intro'), chapter: !!q('.chapter-card'), doc: !!q('.doc-close'),
+      ending: !!q('.ending-card'), intro: !!q('.cine'), chapter: !!q('.chapter-card'), doc: !!q('.doc-close'),
       cctv: !!q('.cctv'), cctvMark: !!q('.cctv [data-a=mark]'), board: !!q('.board'), panel: q('.panel h2')?.textContent ?? null,
       choices: [...document.querySelectorAll('.choices .choice')].map((b) => ({ t: b.textContent, locked: b.classList.contains('locked') })),
       hotspots: document.querySelectorAll('.hs-svg .hs').length, exit: !!q('.inv-exit'),

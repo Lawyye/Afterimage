@@ -2,6 +2,7 @@ import { el, escapeHtml, sleep, Token } from './util';
 import { CHARACTERS } from '../data/characters';
 import { settings } from './settings';
 import { audio } from './audio';
+import { lineVo, voDuration } from './voice';
 import type { Stage } from './stage';
 
 export interface Line {
@@ -133,15 +134,19 @@ export class Dialogue {
     const fake = new Token();
     const prev = settings.textSpeed;
     settings.textSpeed = 0;
-    void this.show(line, fake, true).catch(() => undefined);
+    void this.show(line, fake, true, false, false).catch(() => undefined);
     settings.textSpeed = prev;
     this.resolveAdvance = null;
     fake.cancel();
   }
 
   /** Показ реплики; промис завершается, когда игрок переходит дальше. */
-  async show(line: Line, token: Token, seen: boolean, forceInstant = false) {
+  async show(line: Line, token: Token, seen: boolean, forceInstant = false, voice = true) {
     const ch = line.speaker ? CHARACTERS[line.speaker] : undefined;
+    // озвучка (ОРФЕЙ, терминалы): звучит, пока игрок не перейдёт дальше; при пропуске прочитанного — молчит
+    const vo = voice && !(this.skip && seen) ? lineVo(line.speaker, line.text) : null;
+    const voEnd = vo ? performance.now() + voDuration(vo) + 150 : 0;
+    if (vo) { void audio.playVo(vo); token.onCancel(() => audio.stopVo()); }
     this.showBox();
     const isOrpheus = line.speaker === 'orpheus';
     this.setOrpheus(isOrpheus, line.expr ?? 'idle');
@@ -194,7 +199,7 @@ export class Dialogue {
         if (done) break;
         chars[i].classList.add('v');
         const c = chars[i].textContent!;
-        if (ch && ch.pitch && /[а-яёa-z0-9]/i.test(c) && i % 2 === 0) audio.blip(ch.pitch, blipKind);
+        if (!vo && ch && ch.pitch && /[а-яёa-z0-9]/i.test(c) && i % 2 === 0) audio.blip(ch.pitch, blipKind);
         let d = delay;
         if (/[.!?…]/.test(c)) d = delay * 7;
         else if (/[,;:—]/.test(c)) d = delay * 3.5;
@@ -233,11 +238,13 @@ export class Dialogue {
           if (Dialogue.paused()) { t = window.setTimeout(fire, 400); return; }
           this.advance();
         };
-        t = window.setTimeout(fire, settings.autoDelay * 1000 + len * 28);
+        // озвученную реплику авточтение дослушивает до конца
+        t = window.setTimeout(fire, Math.max(settings.autoDelay * 1000 + len * 28, voEnd - performance.now() + 700));
         token.onCancel(() => clearTimeout(t));
       }
     });
     this.nextEl.classList.remove('on');
+    if (vo) audio.stopVo();
     token.check();
   }
   private wait(ms: number, stop: () => boolean): Promise<void> {
