@@ -8,3 +8,9 @@ build-artifact/
 dev.html
 build-android/
 __pycache__/
+# готовые сборки не хранятся в git (их делает npm run build / npm run apk)
+dist/
+# ключ подписи APK и его пароль — только локально
+*.keystore
+*.jks
+tools/android/*.pass

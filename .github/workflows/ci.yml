@@ -19,6 +19,12 @@ jobs:
         run: node tests/story-sim.mjs 1500
       - name: Сборка
         run: npm run build
+      - name: Готовая веб-версия
+        uses: actions/upload-artifact@v4
+        with:
+          name: afterimage-web
+          path: dist/index.html
+          retention-days: 30
 
   browser:
     # браузерные тесты: интерфейс на 4 разрешениях, функции, регрессии, точки осмотра, сквозное прохождение
