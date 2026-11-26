@@ -30,8 +30,8 @@ const bodyPoseFor = (id: string, expr: string) => {
   return pose && BODIES[id]?.poses?.includes(pose) ? pose : '';
 };
 /** Раскладка «персонаж стоит в сцене»: ноги за нижним краем, голова ~20 % высоты экрана, фон вокруг виден */
-const BODY_SCALE = 0.8;      // точек сцены на точку кадра тела (для роста 1.0)
-const BODY_GROUND = 1300;    // где ступни (ниже края экрана 1080)
+const HEAD_BOX = 330;        // высота кадра головы (бюста) в точках сцены при росте 1.0 — сама голова ≈ 60 % его
+const HEAD_TOP = 64;         // верх кадра головы у самого высокого персонажа
 const SLOT_X: Record<Side, number> = { left: 440, center: 960, right: 1480 };
 /** Добавить или заменить описание персонажа во время работы (тесты, моды) */
 export function definePortrait(id: string, entry: PortraitEntry) { MAN[id] = entry; }
@@ -401,9 +401,13 @@ export class Stage {
   }
   /** Размер и место персонажа с телом: свой рост, ступни на общей «земле», центр — в слоте стороны */
   private placeBody(root: HTMLElement, b: BodyDef, side: Side) {
-    const k = BODY_SCALE * b.hf;
+    // масштаб — по голове: у всех персонажей голова одного размера (с поправкой на рост), как бы ни был нарисован кадр тела
+    const [bl, bt, bw, bh] = b.bust;
+    const k = (HEAD_BOX * b.hf) / ((bh / 100) * b.h);
     const w = b.w * k, h = b.h * k;
-    Object.assign(root.style, { width: `${w}px`, height: `${h}px`, top: `${BODY_GROUND - h}px`, left: `${SLOT_X[side] - w / 2}px`, right: 'auto', bottom: 'auto' });
+    const top = HEAD_TOP + HEAD_BOX * (1 - b.hf) * 1.6 - (bt / 100) * h;
+    const headCx = ((bl + bw / 2) / 100) * w;
+    Object.assign(root.style, { width: `${w}px`, height: `${h}px`, top: `${top}px`, left: `${SLOT_X[side] - headCx}px`, right: 'auto', bottom: 'auto' });
   }
   /** Жест при смене эмоции (только сдвиги и наклоны слоя — считает видеокарта, картинка не перерисовывается):
    * гнев — подаётся к собеседнику, испуг — отшатывается, грусть — никнет, смех — подпрыгивает, иначе — кивок */

@@ -43,15 +43,15 @@ def locate(out_rgb, bust, s0, x0, y0):
     """Где модель оставила голову: перебор масштаба и сдвига вокруг исходного места по лицу (верх бюста)."""
     face = bust.crop((150, 150, 750, 760))
     best = None
-    for ds in np.linspace(-0.06, 0.06, 13):
+    for ds in np.linspace(-0.35, 0.1, 46):
         s = s0 * (1 + ds)
         f = face.resize((round(600 * s), round(610 * s)), Image.LANCZOS)
         fg = gray(f.convert('RGB'))
         fa = np.asarray(f.getchannel('A'), dtype=np.float32) / 255
         fx, fy = x0 + 150 * s, y0 + 150 * s
         H, W = fg.shape
-        for dy in range(-24, 25, 3):
-            for dx in range(-24, 25, 3):
+        for dy in range(-60, 41, 4):
+            for dx in range(-60, 61, 4):
                 X, Y = round(fx + dx), round(fy + dy)
                 if X < 0 or Y < 0 or X + W > out_rgb.width or Y + H > out_rgb.height:
                     continue
@@ -75,19 +75,35 @@ def head_mask(bust):
 def build(ch, inputs, preview=False):
     cfg = inputs[ch]
     out_rgb = Image.open(os.path.join(SRC, f'{ch}_out.png')).convert('RGB')
-    # модель могла вернуть другой размер — приводим к размеру входа (1024×1536)
-    if out_rgb.size != (1024, 1536):
-        out_rgb = out_rgb.resize((1024, 1536), Image.LANCZOS)
+    # модель могла вернуть другой размер — приводим к ширине входа (1024), пропорции сохраняем
+    if out_rgb.width != 1024:
+        out_rgb = out_rgb.resize((1024, round(out_rgb.height * 1024 / out_rgb.width)), Image.LANCZOS)
     ref = unfade(Image.open(os.path.join(PORT, f"{ch}_{cfg['ref']}.webp")).convert('RGBA'))
     score, s, x, y = locate(out_rgb, ref, cfg['s'], cfg['x'], cfg['y'])
     print(f'  {ch}: совпадение лица {score:.3f}, масштаб {s / cfg["s"]:.3f}, сдвиг {x - cfg["x"]:+.0f},{y - cfg["y"]:+.0f}')
     body = matte(out_rgb)
+    # остатки головы модели вокруг нашей головы (другой контур волос) стираются: в полосе вокруг
+    # силуэта головы, выше плеч, тело видно только там, где его закрывает наша голова
+    hb = ref.resize((round(900 * s), round(1212 * s)), Image.LANCZOS).getchannel('A')
+    ha = Image.new('L', body.size, 0)
+    ha.paste(hb, (round(x), round(y)))
+    han = np.asarray(ha, dtype=np.float32) / 255
+    band = np.asarray(ha.point(lambda v: 255 if v > 12 else 0).filter(ImageFilter.MaxFilter(31)), dtype=np.float32) / 255
+    yy = np.arange(body.height, dtype=np.float32)[:, None]
+    upper = np.clip((y + 1212 * s * 0.5 - yy) / 30, 0, 1) * np.clip((yy - y - 2) / 10, 0, 1)  # выше рамки бюста — макушка модели
+    k = 1 - band * upper * (1 - np.clip(han * 1.3, 0, 1))
+    body.putalpha(Image.fromarray((np.asarray(body.getchannel('A'), dtype=np.float32) * k).astype(np.uint8)))
     # обрезка по фигуре
     a8 = np.asarray(body.getchannel('A')) > 8
     ys, xs = np.where(a8)
     x0, y0 = max(0, xs.min() - 6), max(0, min(ys.min(), int(y)) - 6)
     x1, y1 = min(body.width, xs.max() + 6), min(body.height, ys.max() + 4)
     crop = body.crop((x0, y0, x1, y1))
+    # низ кадра (колени) растворяется — если фигура кончается выше края экрана, обрыва не видно
+    ca = np.asarray(crop.getchannel('A'), dtype=np.float32)
+    yy2 = np.linspace(0, 1, ca.shape[0], dtype=np.float32)[:, None]
+    tt = np.clip((yy2 - 0.86) / 0.14, 0, 1)
+    crop.putalpha(Image.fromarray((ca * (1 - tt * tt * (3 - 2 * tt))).astype(np.uint8)))
     os.makedirs(OUT, exist_ok=True)
     crop.save(os.path.join(OUT, f'{ch}.webp'), 'WEBP', quality=88, method=6, alpha_quality=90)
     cw, chh = crop.size
