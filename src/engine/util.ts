@@ -80,4 +80,9 @@ export function haptic(pattern: number | number[]) {
 
 /** Телефон/планшет или слабый процессор: облегчённая графика. Вычисляется один раз и сразу —
  * не зависит от порядка создания объектов сцены. */
-export const LOWFX = typeof matchMedia === 'function' && (matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4);
+export const LOWFX = typeof matchMedia === 'function' && (
+  matchMedia('(pointer: coarse)').matches
+  || (navigator.hardwareConcurrency ?? 8) <= 4
+  || ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 3
+  || (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true
+);

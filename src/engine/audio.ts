@@ -2,6 +2,7 @@
 // Web Audio API. Единственные записанные звуки — озвучка (assets/voice, см. voice.ts).
 import { voUrl } from './voice';
 import { settings, onSettings } from './settings';
+import { LOWFX } from './util';
 
 type Ctx = AudioContext;
 interface Voice {
@@ -79,9 +80,9 @@ export class AudioEngine {
     this.voiceBus.connect(this.master);
     this.voBus = ctx.createGain();
     this.voBus.connect(this.master);
-    this.noise = this.makeNoise('white', 4);
-    this.pink = this.makeNoise('pink', 6);
-    this.brown = this.makeNoise('brown', 6);
+    this.noise = this.makeNoise('white', LOWFX ? 2 : 4);
+    this.pink = this.makeNoise('pink', LOWFX ? 3 : 6);
+    this.brown = this.makeNoise('brown', LOWFX ? 3 : 6);
     this.reverb = ctx.createConvolver();
     this.reverb.buffer = this.makeImpulse(2.6, 2.4);
     this.reverbIn = ctx.createGain();
@@ -91,7 +92,8 @@ export class AudioEngine {
     this.bigReverbIn = ctx.createGain();
     this.bigReverbIn.connect(this.bigReverb).connect(this.master);
     onSettings(() => this.applyVolumes());
-    this.sched = window.setInterval(() => this.tick(), 50);
+    // на телефоне секвенсор просыпается реже: ноты всё равно планируются на 0.8 с вперёд
+    this.sched = window.setInterval(() => this.tick(), LOWFX ? 100 : 50);
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
       if (document.hidden) void this.ctx.suspend();

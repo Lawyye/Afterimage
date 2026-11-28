@@ -52,28 +52,69 @@ def gray(im):
 
 
 def locate(out_rgb, bust, s0, x0, y0):
-    """Где модель оставила голову: перебор масштаба и сдвига вокруг исходного места по лицу (верх бюста)."""
+    """Где модель оставила голову: грубый поиск по всему кадру, затем точный вокруг лучшего места."""
     face = bust.crop((150, 150, 750, 760))
+    og_full = gray(out_rgb)
+    H0, W0 = og_full.shape
     best = None
-    for ds in np.linspace(-0.35, 0.1, 46):
+
+    def score_at(s, X, Y, fg, fa):
+        h, w = fg.shape
+        if X < 0 or Y < 0 or X + w > W0 or Y + h > H0:
+            return None
+        og = og_full[Y:Y + h, X:X + w]
+        m = fa > 0.9
+        if int(m.sum()) < 80:
+            return None
+        a, b = fg[m], og[m]
+        a, b = a - a.mean(), b - b.mean()
+        return float((a * b).sum() / (np.sqrt((a * a).sum() * (b * b).sum()) + 1e-6))
+
+    # грубо: мало масштабов, шаг ~24 px, лицо уменьшено
+    for ds in np.linspace(-0.45, 0.25, 15):
         s = s0 * (1 + ds)
-        f = face.resize((round(600 * s), round(610 * s)), Image.LANCZOS)
+        f = face.resize((max(8, round(600 * s / 4)), max(8, round(610 * s / 4))), Image.BOX)
         fg = gray(f.convert('RGB'))
         fa = np.asarray(f.getchannel('A'), dtype=np.float32) / 255
-        fx, fy = x0 + 150 * s, y0 + 150 * s
-        H, W = fg.shape
-        for dy in range(-60, 41, 4):
-            for dx in range(-60, 61, 4):
-                X, Y = round(fx + dx), round(fy + dy)
-                if X < 0 or Y < 0 or X + W > out_rgb.width or Y + H > out_rgb.height:
+        step = 24
+        y_limit = int(H0 * 0.42)
+        for Y in range(0, min(y_limit, H0 - fg.shape[0] * 4), step):
+            for X in range(0, W0 - fg.shape[1], step):
+                # сравниваем с уменьшенным кадром той же сетки
+                og = og_full[Y:Y + fg.shape[0] * 4:4, X:X + fg.shape[1] * 4:4]
+                if og.shape != fg.shape:
                     continue
-                og = gray(out_rgb.crop((X, Y, X + W, Y + H)))
-                a, b = fg[fa > 0.9], og[fa > 0.9]
+                m = fa > 0.85
+                if int(m.sum()) < 40:
+                    continue
+                a, b = fg[m], og[m]
                 a, b = a - a.mean(), b - b.mean()
                 c = float((a * b).sum() / (np.sqrt((a * a).sum() * (b * b).sum()) + 1e-6))
                 if best is None or c > best[0]:
-                    best = (c, s, X - 150 * s, Y - 150 * s)
-    return best
+                    best = (c, s, X - 150 * s, Y - 150 * s, X, Y)
+
+    # точно вокруг грубого попадания и вокруг исходной точки
+    seeds = [(s0, x0 + 150 * s0, y0 + 150 * s0)]
+    if best is not None:
+        seeds.append((best[1], best[4], best[5]))
+    fine = None
+    for s_seed, fx0, fy0 in seeds:
+        for ds in np.linspace(-0.08, 0.08, 9):
+            s = s_seed * (1 + ds)
+            f = face.resize((max(8, round(600 * s)), max(8, round(610 * s))), Image.LANCZOS)
+            fg = gray(f.convert('RGB'))
+            fa = np.asarray(f.getchannel('A'), dtype=np.float32) / 255
+            for dy in range(-36, 37, 4):
+                for dx in range(-36, 37, 4):
+                    X, Y = round(fx0 + dx), round(fy0 + dy)
+                    c = score_at(s, X, Y, fg, fa)
+                    if c is None or (Y > H0 * 0.46):
+                        continue
+                    if fine is None or c > fine[0]:
+                        fine = (c, s, X - 150 * s, Y - 150 * s)
+    if fine is None:
+        return best[0], best[1], best[2], best[3]
+    return fine
 
 
 def head_mask(bust, keep=KEEP, fade=0.1):

@@ -22,7 +22,7 @@ function preloadIdle(urls: string[]) {
   const queue = [...urls];
   const idle = (cb: () => void) => ((window as unknown as { requestIdleCallback?: (f: () => void, o?: object) => void }).requestIdleCallback ?? ((f: () => void) => setTimeout(f, 50)))(cb, { timeout: 500 });
   const next = () => {
-    const batch = queue.splice(0, 4);
+    const batch = queue.splice(0, LOWFX ? 2 : 4);
     if (!batch.length) return;
     Promise.all(batch.map((u) => new Promise<void>((res) => { const i = new Image(); i.onload = i.onerror = () => res(); i.src = u; }))).then(() => idle(next));
   };
@@ -30,6 +30,7 @@ function preloadIdle(urls: string[]) {
 }
 
 import { toggleFullscreen } from './ui/fullscreen';
+import { LOWFX } from './engine/util';
 
 import { audio } from './engine/audio';
 import { settings } from './engine/settings';

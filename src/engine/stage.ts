@@ -109,8 +109,8 @@ export function allAssetUrls(): string[] {
         // у персонажей с телом в игре нужна только голова; полный бюст — для журнала и галереи, его не грузим заранее
         if (!pose && BODIES[id]) urls.push(asset(`${pre}_${e}_head.webp`));
         else urls.push(asset(`${pre}_${e}.webp`));
-        if (f.talk) urls.push(asset(`${pre}_${e}_talk.webp`));
-        if (f.blink) urls.push(asset(`${pre}_${e}_blink.webp`));
+        if (f.talk && !LOWFX) urls.push(asset(`${pre}_${e}_talk.webp`));
+        if (f.blink && !LOWFX) urls.push(asset(`${pre}_${e}_blink.webp`));
       }
     }
   }
