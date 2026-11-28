@@ -28,7 +28,23 @@ KEEP = 0.66
 # бюста 900×1212) и где голова уступает шее и воротнику тела
 SHRINK = {'voron': dict(hs=0.85, anchor=(420, 800), keep=0.68, fade=0.06,
                         poly=[(0, 0), (900, 0), (900, 330), (720, 520), (640, 640), (590, 730), (560, 800), (560, 900),
-                              (300, 900), (250, 800), (200, 760), (110, 600), (0, 520)])}
+                              (300, 900), (250, 800), (200, 760), (110, 600), (0, 520)]),
+          # пятеро от Grok: в полный рост голова выглядела крупной (у Евы ≈ 1/7.5 роста) — уменьшаем каждому по-своему
+          'mira': dict(hs=0.9, anchor=(440, 880), keep=0.74, fade=0.06,
+                       poly=[(0, 0), (900, 0), (900, 620), (800, 700), (720, 800), (610, 870), (570, 930), (330, 930),
+                             (300, 870), (230, 800), (120, 720), (0, 690)]),
+          'sonya': dict(hs=0.86, anchor=(500, 850), keep=0.72, fade=0.06,
+                        poly=[(0, 0), (900, 0), (900, 760), (800, 820), (680, 860), (600, 900), (410, 900), (380, 830),
+                              (300, 740), (150, 660), (0, 620)]),
+          'leo': dict(hs=0.88, anchor=(420, 820), keep=0.69, fade=0.06,
+                      poly=[(0, 0), (900, 0), (900, 560), (650, 600), (580, 700), (530, 790), (510, 860), (330, 860),
+                            (300, 790), (260, 700), (200, 620), (0, 560)]),
+          'hass': dict(hs=0.82, anchor=(450, 840), keep=0.71, fade=0.06,
+                       poly=[(0, 0), (900, 0), (900, 620), (760, 660), (640, 720), (580, 800), (560, 870), (340, 870),
+                             (300, 780), (240, 700), (200, 600), (120, 520), (0, 500)]),
+          'kessler': dict(hs=0.72, anchor=(470, 900), keep=0.74, fade=0.06,
+                          poly=[(0, 0), (900, 0), (900, 700), (760, 760), (680, 830), (620, 910), (420, 910), (380, 870),
+                                (250, 860), (100, 830), (0, 800)])}
 
 
 def poly_mask(poly, blur=10):
@@ -132,9 +148,15 @@ def build(ch, inputs, preview=False):
     if out_rgb.width != 1024:
         out_rgb = out_rgb.resize((1024, round(out_rgb.height * 1024 / out_rgb.width)), Image.LANCZOS)
     ref = unfade(Image.open(os.path.join(PORT, f"{ch}_{cfg['ref']}.webp")).convert('RGBA'))
-    score, s, x, y = locate(out_rgb, ref, cfg['s'], cfg['x'], cfg['y'])
+    if cfg.get('loc'):
+        # рамка задана вручную: модель перерисовала лицо мельче, поиск по лицу промахивается — голова ставится по шее
+        s, x, y = cfg['loc']
+        score = locate_score = 0.0
+    else:
+        score, s, x, y = locate(out_rgb, ref, cfg['s'], cfg['x'], cfg['y'])
     print(f'  {ch}: совпадение лица {score:.3f}, масштаб {s / cfg["s"]:.3f}, сдвиг {x - cfg["x"]:+.0f},{y - cfg["y"]:+.0f}')
     body = matte(out_rgb)
+    a0 = np.asarray(body.getchannel('A'), dtype=np.float32)  # силуэт модели до стирания её головы
     sh = SHRINK.get(ch)
     if sh:
         # большая голова модели стирается выше точки крепления, на её место встанет наша, уменьшенная
@@ -146,6 +168,12 @@ def build(ch, inputs, preview=False):
         bm = np.asarray(bm.filter(ImageFilter.MaxFilter(9)), dtype=np.float32) / 255
         yy0 = np.arange(body.height, dtype=np.float32)[:, None]
         above = np.clip((y + ay * s - yy0) / 18, 0, 1)
+        # выше середины лица тела не бывает — только голова модели, в том числе её макушка над рамкой бюста
+        # и пряди шире нашей причёски: в колонке головы всё это стирается (иначе над уменьшенной головой висят обрывки)
+        xx0 = np.arange(body.width, dtype=np.float32)[None, :]
+        col = np.clip((xx0 - (x - 40)) / 20, 0, 1) * np.clip((x + 900 * s + 40 - xx0) / 20, 0, 1)
+        top = np.clip((y + 0.4 * 1212 * s - yy0) / 24, 0, 1)
+        bm = np.maximum(bm, col * top)
         body.putalpha(Image.fromarray((np.asarray(body.getchannel('A'), dtype=np.float32) * (1 - bm * above)).astype(np.uint8)))
         s2 = s * sh['hs']
         x, y = x + ax * s - ax * s2, y + ay * s - ay * s2
@@ -161,6 +189,26 @@ def build(ch, inputs, preview=False):
     upper = np.clip((y + 1212 * s * 0.5 - yy) / 30, 0, 1) * np.clip((yy - y - 2) / 10, 0, 1)  # выше рамки бюста — макушка модели
     k = 1 - band * upper * (1 - np.clip(han * 1.3, 0, 1))
     body.putalpha(Image.fromarray((np.asarray(body.getchannel('A'), dtype=np.float32) * k).astype(np.uint8)))
+    if sh:
+        # за большой челюстью модели был воротник или капюшон, которого она не рисовала: у уменьшенной головы
+        # там открылась дыра. Её заполняем по соседним пикселям (воротник, капюшон, шея) — только ниже середины лица,
+        # и только там, где игра не рисует нашу голову (кадр головы = маска головы × контур, как в кадрах ниже)
+        import cv2
+        hm = head_mask(ref, sh.get('keep', KEEP), sh.get('fade', 0.1)) * poly_mask(sh['poly'])
+        hmi = Image.fromarray((hm * 255).astype(np.uint8)).resize((round(900 * s), round(1212 * s)), Image.LANCZOS)
+        hc = Image.new('L', body.size, 0)
+        hc.paste(hmi, (round(x), round(y)))
+        hcn = np.asarray(hc, dtype=np.float32) / 255
+        a_now = np.asarray(body.getchannel('A'), dtype=np.float32)
+        lower = (yy >= y + 1212 * s * 0.45) & (yy <= y + ay * s + 40)
+        gap = (a0 > 128) & (a_now < 160) & (hcn < 0.9) & lower
+        gap = np.asarray(Image.fromarray((gap * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))) > 0
+        if gap.any():
+            rgb = np.ascontiguousarray(np.asarray(body.convert('RGB')))
+            filled = cv2.inpaint(rgb, (gap * 255).astype(np.uint8), 9, cv2.INPAINT_TELEA)
+            alpha = np.where(gap, np.maximum(a_now, a0), a_now)
+            body = Image.fromarray(np.dstack([filled, alpha]).astype(np.uint8), 'RGBA')
+            print(f'    заполнено после уменьшения головы: {int(gap.sum())} точек')
     # обрезка по фигуре
     a8 = np.asarray(body.getchannel('A')) > 8
     ys, xs = np.where(a8)
